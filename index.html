@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VentasApp</title>
   
-  <!-- Configuración PWA / Instalable -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f172a">
 
-  <!-- Tailwind CSS para Estilos -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
   <!-- React y Babel -->
@@ -23,27 +22,23 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // Usuarios iniciales
     const usuariosIniciales = [
-      { id: 1, usuario: 'Sergio', clave: '1234', nombre: 'Sergio (Admin)', esAdmin: true },
-      { id: 2, usuario: 'Kevin', clave: '1234', nombre: 'Kevin', esAdmin: false },
-      { id: 3, usuario: 'Vendedor', clave: '1234', nombre: 'Vendedor Principal', esAdmin: false }
+      { id: 1, usuario: 'sergio', clave: '1234', nombre: 'Sergio (Admin)', esAdmin: true },
+      { id: 2, usuario: 'kevin', clave: '1234', nombre: 'Kevin', esAdmin: false },
+      { id: 3, usuario: 'vendedor', clave: '1234', nombre: 'Vendedor Principal', esAdmin: false }
     ];
 
     function App() {
-      // 1. Cargar lista de vendedores desde localStorage o usar la lista inicial
       const [vendedores, setVendedores] = useState(() => {
-        const guardados = localStorage.getItem('vendedores');
+        const guardados = localStorage.getItem('vendedores_v2');
         return guardados ? JSON.parse(guardados) : usuariosIniciales;
       });
 
-      // 2. Cargar clientes almacenados
       const [clientes, setClientes] = useState(() => {
         const guardados = localStorage.getItem('clientes');
         return guardados ? JSON.parse(guardados) : [];
       });
 
-      // 3. PERSISTENCIA DE SESIÓN: Cargar el usuario actualmente logueado
       const [usuarioActual, setUsuarioActual] = useState(() => {
         const sesionGuardada = localStorage.getItem('sesion_activa');
         return sesionGuardada ? JSON.parse(sesionGuardada) : null;
@@ -53,27 +48,23 @@
       const [inputPass, setInputPass] = useState('');
       const [error, setError] = useState('');
 
-      // Campos de nuevo cliente
       const [nombreCli, setNombreCli] = useState('');
       const [dirCli, setDirCli] = useState('');
       const [locCli, setLocCli] = useState('');
       const [busqueda, setBusqueda] = useState('');
 
-      // Campos de nuevo vendedor (Admin)
       const [nuevoUser, setNuevoUser] = useState('');
       const [nuevaClave, setNuevaClave] = useState('');
       const [nuevoNombre, setNuevoNombre] = useState('');
 
-      // Guardar cambios en localStorage cuando los datos cambien
       useEffect(() => {
-        localStorage.setItem('vendedores', JSON.stringify(vendedores));
+        localStorage.setItem('vendedores_v2', JSON.stringify(vendedores));
       }, [vendedores]);
 
       useEffect(() => {
         localStorage.setItem('clientes', JSON.stringify(clientes));
       }, [clientes]);
 
-      // Guardar estado de la sesión activa para que no se cierre al actualizar
       useEffect(() => {
         if (usuarioActual) {
           localStorage.setItem('sesion_activa', JSON.stringify(usuarioActual));
@@ -84,9 +75,15 @@
 
       const handleLogin = (e) => {
         e.preventDefault();
+        
+        // .trim() elimina espacios invisibles al inicio y final introducidos por el teclado del celular
+        const userLimpio = inputUser.trim().toLowerCase();
+        const passLimpia = inputPass.trim();
+
         const user = vendedores.find(
-          v => v.usuario.trim().toLowerCase() === inputUser.trim().toLowerCase() && v.clave === inputPass
+          v => v.usuario.trim().toLowerCase() === userLimpio && v.clave.trim() === passLimpia
         );
+
         if (user) {
           setUsuarioActual(user);
           setError('');
@@ -99,6 +96,14 @@
 
       const handleLogout = () => {
         setUsuarioActual(null);
+      };
+
+      const resetearDatos = () => {
+        localStorage.clear();
+        setVendedores(usuariosIniciales);
+        setClientes([]);
+        setUsuarioActual(null);
+        alert('Memoria reiniciada correctamente');
       };
 
       const guardarCliente = (e) => {
@@ -120,8 +125,8 @@
         if (!nuevoUser || !nuevaClave || !nuevoNombre) return;
         const nuevo = {
           id: Date.now(),
-          usuario: nuevoUser,
-          clave: nuevaClave,
+          usuario: nuevoUser.trim().toLowerCase(),
+          clave: nuevaClave.trim(),
           nombre: nuevoNombre,
           esAdmin: false
         };
@@ -133,30 +138,43 @@
         setVendedores(vendedores.filter(v => v.id !== id));
       };
 
-      // Si no hay sesión iniciada, muestra el formulario de Login
       if (!usuarioActual) {
         return (
           <div className="min-h-screen flex items-center justify-center p-4">
             <div className="bg-slate-800 p-6 rounded-2xl w-full max-w-sm border border-slate-700 shadow-xl space-y-4">
               <h1 className="text-xl font-bold text-center text-white">VentasApp Offline</h1>
               {error && <p className="text-xs text-red-400 text-center font-medium">{error}</p>}
+              
               <form onSubmit={handleLogin} className="space-y-3">
                 <input 
-                  type="text" placeholder="Usuario" value={inputUser} onChange={e=>setInputUser(e.target.value)}
+                  type="text" 
+                  placeholder="Usuario (ej: Sergio)" 
+                  value={inputUser} 
+                  onChange={e=>setInputUser(e.target.value)}
+                  autoCapitalize="none"
+                  autoCorrect="off"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
                 />
                 <input 
-                  type="password" placeholder="Contraseña" value={inputPass} onChange={e=>setInputPass(e.target.value)}
+                  type="password" 
+                  placeholder="Contraseña" 
+                  value={inputPass} 
+                  onChange={e=>setInputPass(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
                 />
                 <button className="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-2.5 rounded-xl text-sm transition-colors">Ingresar</button>
               </form>
+
+              <div className="pt-2 border-t border-slate-700/50 text-center">
+                <button onClick={resetearDatos} className="text-[11px] text-slate-400 underline">
+                  ¿No ingresa? Toca aquí para actualizar usuarios
+                </button>
+              </div>
             </div>
           </div>
         );
       }
 
-      // Filtrado de clientes según el rol
       const clientesVisibles = clientes.filter(c => {
         const coincideQuery = c.nombre.toLowerCase().includes(busqueda.toLowerCase()) || 
                              c.localidad.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -166,7 +184,6 @@
 
       return (
         <div className="min-h-screen max-w-md mx-auto bg-slate-900 flex flex-col p-4 space-y-4">
-          {/* Header Superior */}
           <div className="flex justify-between items-center border-b border-slate-800 pb-3">
             <div>
               <h2 className="font-bold text-white">{usuarioActual.nombre}</h2>
@@ -177,13 +194,12 @@
             </button>
           </div>
 
-          {/* Vista de Administrador */}
           {usuarioActual.esAdmin ? (
             <div className="space-y-4">
               <h3 className="font-bold text-amber-400 text-sm">Panel de Administración de Vendedores</h3>
               <form onSubmit={guardarVendedor} className="bg-slate-800 p-3.5 rounded-xl space-y-2.5 border border-slate-700">
                 <input type="text" placeholder="Nombre Completo" value={nuevoNombre} onChange={e=>setNuevoNombre(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                <input type="text" placeholder="Usuario" value={nuevoUser} onChange={e=>setNuevoUser(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+                <input type="text" placeholder="Usuario" value={nuevoUser} onChange={e=>setNuevoUser(e.target.value)} autoCapitalize="none" className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
                 <input type="password" placeholder="Contraseña" value={nuevaClave} onChange={e=>setNuevaClave(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
                 <button className="w-full bg-amber-600 hover:bg-amber-500 text-xs font-bold py-2.5 rounded-lg transition-colors">Crear Nuevo Vendedor</button>
               </form>
@@ -206,7 +222,6 @@
               </div>
             </div>
           ) : (
-            /* Vista de Vendedor */
             <div className="space-y-4">
               <h3 className="font-bold text-indigo-400 text-sm">Cargar Nuevo Cliente</h3>
               <form onSubmit={guardarCliente} className="bg-slate-800 p-3.5 rounded-xl space-y-2.5 border border-slate-700">
