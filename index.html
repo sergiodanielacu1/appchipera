@@ -29,17 +29,24 @@
 
     function App() {
       const [vendedores, setVendedores] = useState(() => {
-        const g = localStorage.getItem('vendedores_v4');
+        const g = localStorage.getItem('vendedores_v5');
         return g ? JSON.parse(g) : usuariosIniciales;
       });
 
       const [clientes, setClientes] = useState(() => {
-        const g = localStorage.getItem('clientes_v4');
+        const g = localStorage.getItem('clientes_v5');
         return g ? JSON.parse(g) : [];
       });
 
+      // Pedidos activos del día en curso
       const [pedidos, setPedidos] = useState(() => {
-        const g = localStorage.getItem('pedidos_v4');
+        const g = localStorage.getItem('pedidos_v5');
+        return g ? JSON.parse(g) : [];
+      });
+
+      // Historial de días cerrados
+      const [historialDias, setHistorialDias] = useState(() => {
+        const g = localStorage.getItem('historial_dias_v5');
         return g ? JSON.parse(g) : [];
       });
 
@@ -49,9 +56,9 @@
       });
 
       // Navegación
-      const [vista, setVista] = useState('clientes'); // 'clientes', 'pedidos'
+      const [vista, setVista] = useState('clientes'); // 'clientes', 'pedidos', 'historial'
 
-      // Form Login
+      // Login
       const [inputUser, setInputUser] = useState('');
       const [inputPass, setInputPass] = useState('');
       const [error, setError] = useState('');
@@ -62,7 +69,7 @@
       const [locCli, setLocCli] = useState('');
       const [busqueda, setBusqueda] = useState('');
 
-      // Form / Edición de Pedido
+      // Pedidos y Modificación
       const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
       const [pedidoEditandoId, setPedidoEditandoId] = useState(null);
       const [itemsPedido, setItemsPedido] = useState([]);
@@ -71,9 +78,10 @@
       const [prodPrecio, setProdPrecio] = useState('');
 
       // Guardar en localStorage
-      useEffect(() => { localStorage.setItem('vendedores_v4', JSON.stringify(vendedores)); }, [vendedores]);
-      useEffect(() => { localStorage.setItem('clientes_v4', JSON.stringify(clientes)); }, [clientes]);
-      useEffect(() => { localStorage.setItem('pedidos_v4', JSON.stringify(pedidos)); }, [pedidos]);
+      useEffect(() => { localStorage.setItem('vendedores_v5', JSON.stringify(vendedores)); }, [vendedores]);
+      useEffect(() => { localStorage.setItem('clientes_v5', JSON.stringify(clientes)); }, [clientes]);
+      useEffect(() => { localStorage.setItem('pedidos_v5', JSON.stringify(pedidos)); }, [pedidos]);
+      useEffect(() => { localStorage.setItem('historial_dias_v5', JSON.stringify(historialDias)); }, [historialDias]);
       useEffect(() => {
         if (usuarioActual) localStorage.setItem('sesion_activa', JSON.stringify(usuarioActual));
         else localStorage.removeItem('sesion_activa');
@@ -107,7 +115,6 @@
         }
       };
 
-      // Manejo de Items en Pedido
       const agregarProducto = (e) => {
         e.preventDefault();
         if (!prodDesc || !prodPrecio || Number(prodCant) <= 0) return;
@@ -145,15 +152,13 @@
       };
 
       const guardarOActualizarPedido = () => {
-        if (itemsPedido.length === 0) return alert('El pedido debe tener al menos un producto');
+        if (itemsPedido.length === 0) return alert('El pedido debe contener al menos un artículo');
         const total = itemsPedido.reduce((acc, item) => acc + item.subtotal, 0);
 
         if (pedidoEditandoId) {
-          // Actualizar pedido existente
           setPedidos(pedidos.map(p => p.id === pedidoEditandoId ? { ...p, items: itemsPedido, total } : p));
-          alert('Pedido modificado con éxito');
+          alert('Pedido modificado correctamente');
         } else {
-          // Crear nuevo pedido
           const nuevoPedido = {
             id: Date.now(),
             nroBoleta: 'N° ' + String(pedidos.length + 1).padStart(5, '0'),
@@ -173,66 +178,123 @@
         setPedidoEditandoId(null);
       };
 
-      // GENERACIÓN DE PDFS (jsPDF)
-      const generarPDFTodosLosPedidos = () => {
+      // CIERRE DE DÍA / NUEVO RECORRIDO
+      const realizarCierreDeDia = () => {
         const pedidosVendedor = pedidos.filter(p => p.vendedorId === usuarioActual.id);
-        if (pedidosVendedor.length === 0) return alert('No hay pedidos registrados para generar el PDF');
+        if (pedidosVendedor.length === 0) {
+          return alert('No hay pedidos en el día actual para realizar el cierre.');
+        }
+
+        if (confirm('¿Deseas realizar el CIERRE DE DÍA?\nSe archivará la jornada actual en la memoria e iniciará un nuevo recorrido libre.')) {
+          const cierre = {
+            id: Date.now(),
+            fechaCierre: new Date().toLocaleString('es-AR'),
+            vendedorId: usuarioActual.id,
+            vendedorNombre: usuarioActual.nombre,
+            pedidos: pedidosVendedor,
+            totalVendido: pedidosVendedor.reduce((acc, p) => acc + p.total, 0)
+          };
+
+          // Guardar en el historial
+          setHistorialDias([cierre, ...historialDias]);
+
+          // Limpiar pedidos activos del vendedor
+          setPedidos(pedidos.filter(p => p.vendedorId !== usuarioActual.id));
+
+          alert('¡Cierre de día completado con éxito! Se ha iniciado un nuevo recorrido.');
+          setVista('historial');
+        }
+      };
+
+      // EVALUACIÓN INTELIGENTE DE HOJA (PDF DE PEDIDOS)
+      const generarPDFOptimizandoHoja = (listaPedidos = null) => {
+        const pedidosAProcesar = listaPedidos || pedidos.filter(p => p.vendedorId === usuarioActual.id);
+        if (pedidosAProcesar.length === 0) return alert('No hay pedidos para generar el PDF');
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
+        
+        const MAX_Y_PAGINA = 270; // Límite inferior seguro de la hoja
+        let currentY = 15;
 
-        pedidosVendedor.forEach((p, index) => {
-          if (index > 0) doc.addPage();
+        const dibujarPedido = (p, startY) => {
+          let y = startY;
 
-          doc.setFontSize(16);
-          doc.text(`COMPROBANTE DE PEDIDO ${p.nroBoleta}`, 15, 20);
-          doc.setFontSize(10);
-          doc.text(`Fecha: ${p.fecha}`, 15, 27);
-          doc.text(`Vendedor: ${p.vendedorNombre}`, 15, 33);
+          doc.setFontSize(14);
+          doc.setFont(undefined, 'bold');
+          doc.text(`COMPROBANTE DE PEDIDO ${p.nroBoleta}`, 15, y);
+          doc.setFontSize(9);
+          doc.setFont(undefined, 'normal');
+          doc.text(`Fecha: ${p.fecha} | Vendedor: ${p.vendedorNombre}`, 15, y + 5);
 
-          doc.line(15, 37, 195, 37);
+          doc.line(15, y + 8, 195, y + 8);
 
-          doc.text(`Cliente: ${p.cliente.nombre}`, 15, 45);
-          doc.text(`Dirección: ${p.cliente.direccion} - ${p.cliente.localidad}`, 15, 51);
+          doc.text(`Cliente: ${p.cliente.nombre}`, 15, y + 14);
+          doc.text(`Dirección: ${p.cliente.direccion} (${p.cliente.localidad})`, 15, y + 19);
 
-          doc.line(15, 55, 195, 55);
+          doc.line(15, y + 22, 195, y + 22);
 
-          let y = 65;
+          y += 28;
           doc.setFont(undefined, 'bold');
           doc.text('Cant.', 15, y);
-          doc.text('Producto / Descripción', 35, y);
+          doc.text('Descripción / Producto', 35, y);
           doc.text('P. Unit', 140, y);
           doc.text('Subtotal', 170, y);
           doc.setFont(undefined, 'normal');
 
-          y += 6;
+          y += 5;
           p.items.forEach(item => {
             doc.text(String(item.cantidad), 15, y);
             doc.text(item.descripcion, 35, y);
             doc.text(`$${item.precio}`, 140, y);
             doc.text(`$${item.subtotal}`, 170, y);
-            y += 7;
+            y += 6;
           });
 
           doc.line(15, y, 195, y);
-          y += 8;
+          y += 6;
           doc.setFont(undefined, 'bold');
-          doc.setFontSize(12);
           doc.text(`TOTAL PEDIDO: $${p.total}`, 130, y);
+
+          // Retornar la posición final Y
+          return y + 12; // Margen de separación entre pedidos
+        };
+
+        pedidosAProcesar.forEach((p, index) => {
+          // Calcular la altura requerida por este pedido (encabezado + cliente + filas + total)
+          const alturaPedido = 45 + (p.items.length * 6);
+
+          // Si el pedido NO cabe en lo que queda de página, crear una nueva hoja
+          if (currentY + alturaPedido > MAX_Y_PAGINA && index > 0) {
+            doc.addPage();
+            currentY = 15;
+          }
+
+          // Dibujar el pedido y actualizar currentY
+          const finY = dibujarPedido(p, currentY);
+
+          // Si dibujamos un pedido, agregamos una línea divisoria discontinua entre pedidos de la misma hoja
+          if (finY < MAX_Y_PAGINA - 30 && index < pedidosAProcesar.length - 1) {
+            doc.setDrawColor(180, 180, 180);
+            doc.line(15, finY - 6, 195, finY - 6);
+            doc.setDrawColor(0, 0, 0);
+          }
+
+          currentY = finY;
         });
 
         doc.save(`Pedidos_${usuarioActual.nombre}_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
       };
 
-      const generarPDFConsolidado = () => {
-        const pedidosVendedor = pedidos.filter(p => p.vendedorId === usuarioActual.id);
-        if (pedidosVendedor.length === 0) return alert('No hay ventas registradas hoy');
+      // GENERAR CONSOLIDADO
+      const generarPDFConsolidado = (listaPedidos = null) => {
+        const pedidosAProcesar = listaPedidos || pedidos.filter(p => p.vendedorId === usuarioActual.id);
+        if (pedidosAProcesar.length === 0) return alert('No hay ventas para consolidar');
 
-        // Consolidar artículos
         const consolidado = {};
         let valorizadoTotal = 0;
 
-        pedidosVendedor.forEach(p => {
+        pedidosAProcesar.forEach(p => {
           p.items.forEach(item => {
             const clave = item.descripcion.trim().toLowerCase();
             if (!consolidado[clave]) {
@@ -252,14 +314,16 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
-        doc.setFontSize(16);
-        doc.text('RESUMEN CONSOLIDADO DE CARGA / VENTAS', 15, 20);
+        doc.setFontSize(15);
+        doc.setFont(undefined, 'bold');
+        doc.text('RESUMEN CONSOLIDADO DE MERCADERÍA / CARGA', 15, 20);
         doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
         doc.text(`Vendedor: ${usuarioActual.nombre}`, 15, 27);
-        doc.text(`Fecha: ${new Date().toLocaleString('es-AR')}`, 15, 33);
-        doc.line(15, 37, 195, 37);
+        doc.text(`Fecha: ${new Date().toLocaleString('es-AR')}`, 15, 32);
+        doc.line(15, 36, 195, 36);
 
-        let y = 47;
+        let y = 45;
         doc.setFont(undefined, 'bold');
         doc.text('Producto / Artículo', 15, y);
         doc.text('Cant. Total', 100, y);
@@ -279,13 +343,13 @@
         doc.line(15, y, 195, y);
         y += 10;
         doc.setFont(undefined, 'bold');
-        doc.setFontSize(13);
-        doc.text(`VALORIZADO TOTAL DEL DÍA: $${valorizadoTotal}`, 90, y);
+        doc.setFontSize(12);
+        doc.text(`VALORIZADO TOTAL DE MERCADERÍA: $${valorizadoTotal}`, 85, y);
 
         doc.save(`Consolidado_${usuarioActual.nombre}_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
       };
 
-      // VISTA DE LOGIN
+      // LOGIN
       if (!usuarioActual) {
         return (
           <div className="min-h-screen flex items-center justify-center p-4">
@@ -302,7 +366,7 @@
         );
       }
 
-      // VISTA DE FORMULARIO DE PEDIDO
+      // FORMULARIO DE TOMAR / MODIFICAR PEDIDO
       if (clienteSeleccionado) {
         const totalActual = itemsPedido.reduce((acc, i) => acc + i.subtotal, 0);
         return (
@@ -343,14 +407,14 @@
             </div>
 
             <button onClick={guardarOActualizarPedido} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-3 rounded-xl text-white">
-              {pedidoEditandoId ? 'Guardar Cambios del Pedido' : 'Confirmar Pedido'}
+              {pedidoEditandoId ? 'Guardar Cambios' : 'Confirmar Pedido'}
             </button>
           </div>
         );
       }
 
-      // NAVEGACIÓN Y VISTAS PRINCIPALES
       const pedidosDelVendedor = pedidos.filter(p => usuarioActual.esAdmin || p.vendedorId === usuarioActual.id);
+      const cierresDelVendedor = historialDias.filter(h => usuarioActual.esAdmin || h.vendedorId === usuarioActual.id);
       const clientesFiltrados = clientes.filter(c => 
         c.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
         c.direccion.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -367,13 +431,15 @@
             <button onClick={() => setUsuarioActual(null)} className="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Salir</button>
           </div>
 
-          {/* Menú Superior de Pestañas */}
+          {/* Menú Superior de Navegación */}
           <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
             <button onClick={() => setVista('clientes')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${vista === 'clientes' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Clientes</button>
-            <button onClick={() => setVista('pedidos')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${vista === 'pedidos' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Pedidos ({pedidosDelVendedor.length})</button>
+            <button onClick={() => setVista('pedidos')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${vista === 'pedidos' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Día Activo ({pedidosDelVendedor.length})</button>
+            <button onClick={() => setVista('historial')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${vista === 'historial' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Historial</button>
           </div>
 
-          {vista === 'clientes' ? (
+          {/* VISTA CLIENTES */}
+          {vista === 'clientes' && (
             <div className="space-y-4">
               <h3 className="font-bold text-indigo-400 text-sm">Nuevo Cliente</h3>
               <form onSubmit={guardarCliente} className="bg-slate-800 p-3.5 rounded-xl space-y-2 border border-slate-700">
@@ -398,7 +464,7 @@
                         <button onClick={() => iniciarNuevoPedido(c)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-[11px] font-bold py-1.5 rounded-lg">
                           + Tomar Pedido
                         </button>
-                        <button onClick={() => eliminarCliente(c.id)} className="bg-red-500/20 text-red-400 hover:bg-red-500/30 text-[11px] px-2.5 py-1.5 rounded-lg border border-red-500/30">
+                        <button onClick={() => eliminarCliente(c.id)} className="bg-red-500/20 text-red-400 text-[11px] px-2.5 py-1.5 rounded-lg border border-red-500/30">
                           Eliminar
                         </button>
                       </div>
@@ -407,24 +473,30 @@
                 </div>
               </div>
             </div>
-          ) : (
-            /* VISTA DE PEDIDOS Y FIN DE RECORRIDO */
+          )}
+
+          {/* VISTA DÍA ACTIVO */}
+          {vista === 'pedidos' && (
             <div className="space-y-4">
-              {/* Botones de Generación de PDFs */}
               <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
-                <h3 className="font-bold text-amber-400 text-xs">🏁 Opciones de Cierre del Día</h3>
-                <button onClick={generarPDFTodosLosPedidos} className="w-full bg-amber-600 hover:bg-amber-500 text-xs font-bold py-2.5 rounded-lg text-white">
-                  📄 Generar PDF (Todos los Pedidos)
-                </button>
-                <button onClick={generarPDFConsolidado} className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">
-                  📊 Generar Consolidado de Carga ($)
+                <h3 className="font-bold text-amber-400 text-xs">🏁 Acciones del Recorrido Actual</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => generarPDFOptimizandoHoja()} className="bg-indigo-600 hover:bg-indigo-500 text-[11px] font-bold py-2 rounded-lg text-white">
+                    📄 Exportar PDF
+                  </button>
+                  <button onClick={() => generarPDFConsolidado()} className="bg-indigo-600 hover:bg-indigo-500 text-[11px] font-bold py-2 rounded-lg text-white">
+                    📊 Consolidado ($)
+                  </button>
+                </div>
+                <button onClick={realizarCierreDeDia} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-2.5 rounded-lg text-white">
+                  🔒 Cierre de Día / Iniciar Nuevo Recorrido
                 </button>
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-xs font-bold text-slate-400">Listado de Pedidos Guardados:</h4>
+                <h4 className="text-xs font-bold text-slate-400">Pedidos del Recorrido:</h4>
                 {pedidosDelVendedor.length === 0 ? (
-                  <div className="text-center text-xs text-slate-500 py-6">No hay pedidos tomados en el día.</div>
+                  <div className="text-center text-xs text-slate-500 py-6">No hay pedidos tomados en el recorrido actual.</div>
                 ) : (
                   pedidosDelVendedor.map(p => (
                     <div key={p.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
@@ -446,10 +518,10 @@
                       </div>
 
                       <div className="flex gap-2 pt-1">
-                        <button onClick={() => editarPedidoExistente(p)} className="flex-1 bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 text-[11px] font-bold py-1.5 rounded-lg border border-amber-500/30">
+                        <button onClick={() => editarPedidoExistente(p)} className="flex-1 bg-amber-600/20 text-amber-400 text-[11px] font-bold py-1.5 rounded-lg border border-amber-500/30">
                           ✏️ Modificar
                         </button>
-                        <button onClick={() => cancelarPedido(p.id)} className="bg-red-500/20 text-red-400 hover:bg-red-500/30 text-[11px] px-3 py-1.5 rounded-lg border border-red-500/30">
+                        <button onClick={() => cancelarPedido(p.id)} className="bg-red-500/20 text-red-400 text-[11px] px-3 py-1.5 rounded-lg border border-red-500/30">
                           ❌ Cancelar
                         </button>
                       </div>
@@ -457,6 +529,37 @@
                   ))
                 )}
               </div>
+            </div>
+          )}
+
+          {/* VISTA HISTORIAL DE DÍAS CERRADOS */}
+          {vista === 'historial' && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-indigo-400 text-sm">Historial de Recorridos Cerrados</h3>
+              {cierresDelVendedor.length === 0 ? (
+                <div className="text-center text-xs text-slate-500 py-6">No hay cierres de día registrados aún.</div>
+              ) : (
+                cierresDelVendedor.map(c => (
+                  <div key={c.id} className="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-2.5">
+                    <div className="flex justify-between items-center border-b border-slate-700/60 pb-2">
+                      <div>
+                        <div className="font-bold text-xs text-white">Cierre: {c.fechaCierre}</div>
+                        <div className="text-[10px] text-slate-400">{c.pedidos.length} Pedidos de Venta</div>
+                      </div>
+                      <span className="text-sm font-bold text-emerald-400">${c.totalVendido}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => generarPDFOptimizandoHoja(c.pedidos)} className="bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold py-1.5 rounded-lg">
+                        📄 PDF Pedidos
+                      </button>
+                      <button onClick={() => generarPDFConsolidado(c.pedidos)} className="bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold py-1.5 rounded-lg">
+                        📊 PDF Consolidado
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>
