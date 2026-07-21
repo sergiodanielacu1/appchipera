@@ -12,6 +12,7 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
   <div id="root"></div>
@@ -19,7 +20,6 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // Vendedores Iniciales
     const usuariosIniciales = [
       { id: 0, usuario: 'daniel', clave: '00000', nombre: 'Daniel (Admin)', esAdmin: true },
       { id: 1, usuario: 'emilce', clave: '0100', nombre: 'Emilce', esAdmin: false },
@@ -28,29 +28,28 @@
     ];
 
     function App() {
-      // Vendedores
       const [vendedores, setVendedores] = useState(() => {
-        const g = localStorage.getItem('vendedores_v3');
+        const g = localStorage.getItem('vendedores_v4');
         return g ? JSON.parse(g) : usuariosIniciales;
       });
 
-      // Clientes
       const [clientes, setClientes] = useState(() => {
-        const g = localStorage.getItem('clientes_v3');
+        const g = localStorage.getItem('clientes_v4');
         return g ? JSON.parse(g) : [];
       });
 
-      // Pedidos
       const [pedidos, setPedidos] = useState(() => {
-        const g = localStorage.getItem('pedidos_v3');
+        const g = localStorage.getItem('pedidos_v4');
         return g ? JSON.parse(g) : [];
       });
 
-      // Sesión
       const [usuarioActual, setUsuarioActual] = useState(() => {
         const g = localStorage.getItem('sesion_activa');
         return g ? JSON.parse(g) : null;
       });
+
+      // Navegación
+      const [vista, setVista] = useState('clientes'); // 'clientes', 'pedidos'
 
       // Form Login
       const [inputUser, setInputUser] = useState('');
@@ -63,18 +62,18 @@
       const [locCli, setLocCli] = useState('');
       const [busqueda, setBusqueda] = useState('');
 
-      // Pedido activo
+      // Form / Edición de Pedido
       const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+      const [pedidoEditandoId, setPedidoEditandoId] = useState(null);
       const [itemsPedido, setItemsPedido] = useState([]);
       const [prodDesc, setProdDesc] = useState('');
       const [prodCant, setProdCant] = useState('1');
       const [prodPrecio, setProdPrecio] = useState('');
-      const [boletaImprimir, setBoletaImprimir] = useState(null);
 
       // Guardar en localStorage
-      useEffect(() => { localStorage.setItem('vendedores_v3', JSON.stringify(vendedores)); }, [vendedores]);
-      useEffect(() => { localStorage.setItem('clientes_v3', JSON.stringify(clientes)); }, [clientes]);
-      useEffect(() => { localStorage.setItem('pedidos_v3', JSON.stringify(pedidos)); }, [pedidos]);
+      useEffect(() => { localStorage.setItem('vendedores_v4', JSON.stringify(vendedores)); }, [vendedores]);
+      useEffect(() => { localStorage.setItem('clientes_v4', JSON.stringify(clientes)); }, [clientes]);
+      useEffect(() => { localStorage.setItem('pedidos_v4', JSON.stringify(pedidos)); }, [pedidos]);
       useEffect(() => {
         if (usuarioActual) localStorage.setItem('sesion_activa', JSON.stringify(usuarioActual));
         else localStorage.removeItem('sesion_activa');
@@ -88,20 +87,10 @@
         if (user) {
           setUsuarioActual(user);
           setError('');
-          setInputUser('');
-          setInputPass('');
+          setInputUser(''); setInputPass('');
         } else {
           setError('Usuario o contraseña incorrectos');
         }
-      };
-
-      const resetearServidor = () => {
-        localStorage.clear();
-        setVendedores(usuariosIniciales);
-        setClientes([]);
-        setPedidos([]);
-        setUsuarioActual(null);
-        alert('Memoria reiniciada con éxito');
       };
 
       const guardarCliente = (e) => {
@@ -113,12 +102,12 @@
       };
 
       const eliminarCliente = (id) => {
-        if (confirm('¿Estás seguro de eliminar este cliente?')) {
+        if (confirm('¿Eliminar cliente?')) {
           setClientes(clientes.filter(c => c.id !== id));
         }
       };
 
-      // Funciones de pedido
+      // Manejo de Items en Pedido
       const agregarProducto = (e) => {
         e.preventDefault();
         if (!prodDesc || !prodPrecio || Number(prodCant) <= 0) return;
@@ -137,25 +126,166 @@
         setItemsPedido(itemsPedido.filter(i => i.id !== id));
       };
 
-      const finalizarPedido = () => {
-        if (itemsPedido.length === 0) return alert('Agrega al menos un producto');
-        const total = itemsPedido.reduce((acc, item) => acc + item.subtotal, 0);
-        const nuevoPedido = {
-          id: Date.now(),
-          nroBoleta: 'N° ' + String(pedidos.length + 1).padStart(5, '0'),
-          fecha: new Date().toLocaleString('es-AR'),
-          vendedor: usuarioActual.nombre,
-          cliente: clienteSeleccionado,
-          items: itemsPedido,
-          total
-        };
-        setPedidos([nuevoPedido, ...pedidos]);
-        setBoletaImprimir(nuevoPedido);
+      const iniciarNuevoPedido = (cliente) => {
+        setClienteSeleccionado(cliente);
+        setPedidoEditandoId(null);
         setItemsPedido([]);
-        setClienteSeleccionado(null);
       };
 
-      // LOGIN
+      const editarPedidoExistente = (pedido) => {
+        setClienteSeleccionado(pedido.cliente);
+        setPedidoEditandoId(pedido.id);
+        setItemsPedido(pedido.items);
+      };
+
+      const cancelarPedido = (id) => {
+        if (confirm('¿Estás seguro de cancelar este pedido?')) {
+          setPedidos(pedidos.filter(p => p.id !== id));
+        }
+      };
+
+      const guardarOActualizarPedido = () => {
+        if (itemsPedido.length === 0) return alert('El pedido debe tener al menos un producto');
+        const total = itemsPedido.reduce((acc, item) => acc + item.subtotal, 0);
+
+        if (pedidoEditandoId) {
+          // Actualizar pedido existente
+          setPedidos(pedidos.map(p => p.id === pedidoEditandoId ? { ...p, items: itemsPedido, total } : p));
+          alert('Pedido modificado con éxito');
+        } else {
+          // Crear nuevo pedido
+          const nuevoPedido = {
+            id: Date.now(),
+            nroBoleta: 'N° ' + String(pedidos.length + 1).padStart(5, '0'),
+            fecha: new Date().toLocaleString('es-AR'),
+            vendedorId: usuarioActual.id,
+            vendedorNombre: usuarioActual.nombre,
+            cliente: clienteSeleccionado,
+            items: itemsPedido,
+            total
+          };
+          setPedidos([nuevoPedido, ...pedidos]);
+          alert('Pedido guardado correctamente');
+        }
+
+        setItemsPedido([]);
+        setClienteSeleccionado(null);
+        setPedidoEditandoId(null);
+      };
+
+      // GENERACIÓN DE PDFS (jsPDF)
+      const generarPDFTodosLosPedidos = () => {
+        const pedidosVendedor = pedidos.filter(p => p.vendedorId === usuarioActual.id);
+        if (pedidosVendedor.length === 0) return alert('No hay pedidos registrados para generar el PDF');
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        pedidosVendedor.forEach((p, index) => {
+          if (index > 0) doc.addPage();
+
+          doc.setFontSize(16);
+          doc.text(`COMPROBANTE DE PEDIDO ${p.nroBoleta}`, 15, 20);
+          doc.setFontSize(10);
+          doc.text(`Fecha: ${p.fecha}`, 15, 27);
+          doc.text(`Vendedor: ${p.vendedorNombre}`, 15, 33);
+
+          doc.line(15, 37, 195, 37);
+
+          doc.text(`Cliente: ${p.cliente.nombre}`, 15, 45);
+          doc.text(`Dirección: ${p.cliente.direccion} - ${p.cliente.localidad}`, 15, 51);
+
+          doc.line(15, 55, 195, 55);
+
+          let y = 65;
+          doc.setFont(undefined, 'bold');
+          doc.text('Cant.', 15, y);
+          doc.text('Producto / Descripción', 35, y);
+          doc.text('P. Unit', 140, y);
+          doc.text('Subtotal', 170, y);
+          doc.setFont(undefined, 'normal');
+
+          y += 6;
+          p.items.forEach(item => {
+            doc.text(String(item.cantidad), 15, y);
+            doc.text(item.descripcion, 35, y);
+            doc.text(`$${item.precio}`, 140, y);
+            doc.text(`$${item.subtotal}`, 170, y);
+            y += 7;
+          });
+
+          doc.line(15, y, 195, y);
+          y += 8;
+          doc.setFont(undefined, 'bold');
+          doc.setFontSize(12);
+          doc.text(`TOTAL PEDIDO: $${p.total}`, 130, y);
+        });
+
+        doc.save(`Pedidos_${usuarioActual.nombre}_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+      };
+
+      const generarPDFConsolidado = () => {
+        const pedidosVendedor = pedidos.filter(p => p.vendedorId === usuarioActual.id);
+        if (pedidosVendedor.length === 0) return alert('No hay ventas registradas hoy');
+
+        // Consolidar artículos
+        const consolidado = {};
+        let valorizadoTotal = 0;
+
+        pedidosVendedor.forEach(p => {
+          p.items.forEach(item => {
+            const clave = item.descripcion.trim().toLowerCase();
+            if (!consolidado[clave]) {
+              consolidado[clave] = {
+                descripcion: item.descripcion,
+                cantidad: 0,
+                precio: item.precio,
+                subtotal: 0
+              };
+            }
+            consolidado[clave].cantidad += item.cantidad;
+            consolidado[clave].subtotal += item.subtotal;
+            valorizadoTotal += item.subtotal;
+          });
+        });
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFontSize(16);
+        doc.text('RESUMEN CONSOLIDADO DE CARGA / VENTAS', 15, 20);
+        doc.setFontSize(10);
+        doc.text(`Vendedor: ${usuarioActual.nombre}`, 15, 27);
+        doc.text(`Fecha: ${new Date().toLocaleString('es-AR')}`, 15, 33);
+        doc.line(15, 37, 195, 37);
+
+        let y = 47;
+        doc.setFont(undefined, 'bold');
+        doc.text('Producto / Artículo', 15, y);
+        doc.text('Cant. Total', 100, y);
+        doc.text('P. Unitario', 135, y);
+        doc.text('Subtotal', 170, y);
+        doc.setFont(undefined, 'normal');
+
+        y += 6;
+        Object.values(consolidado).forEach(art => {
+          doc.text(art.descripcion, 15, y);
+          doc.text(String(art.cantidad), 100, y);
+          doc.text(`$${art.precio}`, 135, y);
+          doc.text(`$${art.subtotal}`, 170, y);
+          y += 7;
+        });
+
+        doc.line(15, y, 195, y);
+        y += 10;
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(13);
+        doc.text(`VALORIZADO TOTAL DEL DÍA: $${valorizadoTotal}`, 90, y);
+
+        doc.save(`Consolidado_${usuarioActual.nombre}_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+      };
+
+      // VISTA DE LOGIN
       if (!usuarioActual) {
         return (
           <div className="min-h-screen flex items-center justify-center p-4">
@@ -167,77 +297,22 @@
                 <input type="password" placeholder="Contraseña" value={inputPass} onChange={e=>setInputPass(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"/>
                 <button className="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-2.5 rounded-xl text-sm">Ingresar</button>
               </form>
-              <div className="pt-2 border-t border-slate-700/50 text-center">
-                <button onClick={resetearServidor} className="text-[11px] text-slate-400 underline">Restablecer datos predeterminados</button>
-              </div>
             </div>
           </div>
         );
       }
 
-      // VISTA BOLETA
-      if (boletaImprimir) {
-        return (
-          <div className="p-4 max-w-md mx-auto min-h-screen flex flex-col justify-between">
-            <div className="bg-white text-slate-900 p-6 rounded-2xl shadow-2xl space-y-4 font-mono text-xs">
-              <div className="text-center border-b pb-3 border-slate-300">
-                <h2 className="text-lg font-bold">COMPROBANTE DE PEDIDO</h2>
-                <p className="text-slate-600">{boletaImprimir.nroBoleta}</p>
-                <p className="text-[10px] text-slate-500">{boletaImprimir.fecha}</p>
-              </div>
-
-              <div>
-                <p><strong>Vendedor:</strong> {boletaImprimir.vendedor}</p>
-                <p><strong>Cliente:</strong> {boletaImprimir.cliente.nombre}</p>
-                <p><strong>Dirección:</strong> {boletaImprimir.cliente.direccion}</p>
-                <p><strong>Localidad:</strong> {boletaImprimir.cliente.localidad}</p>
-              </div>
-
-              <table className="w-full text-left border-t border-b border-slate-300 py-2">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="py-1">Cant.</th>
-                    <th className="py-1">Prod.</th>
-                    <th className="py-1 text-right">P.Unit</th>
-                    <th className="py-1 text-right">Subt.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {boletaImprimir.items.map(item => (
-                    <tr key={item.id}>
-                      <td className="py-1">{item.cantidad}</td>
-                      <td className="py-1">{item.descripcion}</td>
-                      <td className="py-1 text-right">${item.precio}</td>
-                      <td className="py-1 text-right">${item.subtotal}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div className="text-right text-sm font-bold pt-2 border-t border-slate-300">
-                TOTAL: ${boletaImprimir.total}
-              </div>
-            </div>
-
-            <div className="space-y-2 mt-4">
-              <button onClick={() => window.print()} className="w-full bg-emerald-600 py-3 rounded-xl font-bold text-sm text-white">Imprimir / Guardar PDF</button>
-              <button onClick={() => setBoletaImprimir(null)} className="w-full bg-slate-800 py-3 rounded-xl font-bold text-sm text-slate-300 border border-slate-700">Volver al Inicio</button>
-            </div>
-          </div>
-        );
-      }
-
-      // MODAL TOMAR PEDIDO
+      // VISTA DE FORMULARIO DE PEDIDO
       if (clienteSeleccionado) {
         const totalActual = itemsPedido.reduce((acc, i) => acc + i.subtotal, 0);
         return (
           <div className="max-w-md mx-auto p-4 space-y-4">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <div>
-                <h2 className="font-bold text-indigo-400 text-sm">Cargar Pedido</h2>
+                <h2 className="font-bold text-indigo-400 text-sm">{pedidoEditandoId ? 'Modificar Pedido' : 'Nuevo Pedido'}</h2>
                 <p className="text-xs text-white">{clienteSeleccionado.nombre}</p>
               </div>
-              <button onClick={() => setClienteSeleccionado(null)} className="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Cancelar</button>
+              <button onClick={() => { setClienteSeleccionado(null); setPedidoEditandoId(null); }} className="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Volver</button>
             </div>
 
             <form onSubmit={agregarProducto} className="bg-slate-800 p-3 rounded-xl space-y-2 border border-slate-700">
@@ -246,18 +321,18 @@
                 <input type="number" placeholder="Cant." value={prodCant} onChange={e=>setProdCant(e.target.value)} className="w-1/3 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
                 <input type="number" placeholder="Precio ($)" value={prodPrecio} onChange={e=>setProdPrecio(e.target.value)} className="w-2/3 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
               </div>
-              <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg">Agregar al Pedido</button>
+              <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg">Agregar Producto</button>
             </form>
 
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-400">Detalle del Pedido:</h4>
+              <h4 className="text-xs font-bold text-slate-400">Detalle:</h4>
               {itemsPedido.map(item => (
                 <div key={item.id} className="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex justify-between items-center text-xs">
                   <div>
                     <div className="font-bold text-white">{item.cantidad}x {item.descripcion}</div>
                     <div className="text-slate-400">${item.precio} c/u = <span className="text-indigo-300">${item.subtotal}</span></div>
                   </div>
-                  <button onClick={() => eliminarItemPedido(item.id)} className="text-red-400 text-xs px-2 py-1">X</button>
+                  <button onClick={() => eliminarItemPedido(item.id)} className="text-red-400 text-xs px-2 py-1">Eliminar</button>
                 </div>
               ))}
             </div>
@@ -267,14 +342,15 @@
               <span className="text-emerald-400">${totalActual}</span>
             </div>
 
-            <button onClick={finalizarPedido} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-3 rounded-xl text-white">
-              Finalizar y Generar Boleta
+            <button onClick={guardarOActualizarPedido} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-3 rounded-xl text-white">
+              {pedidoEditandoId ? 'Guardar Cambios del Pedido' : 'Confirmar Pedido'}
             </button>
           </div>
         );
       }
 
-      // PANTALLA PRINCIPAL
+      // NAVEGACIÓN Y VISTAS PRINCIPALES
+      const pedidosDelVendedor = pedidos.filter(p => usuarioActual.esAdmin || p.vendedorId === usuarioActual.id);
       const clientesFiltrados = clientes.filter(c => 
         c.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
         c.direccion.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -291,33 +367,35 @@
             <button onClick={() => setUsuarioActual(null)} className="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Salir</button>
           </div>
 
-          {/* Form Nuevo Cliente */}
-          <div className="space-y-4">
-            <h3 className="font-bold text-indigo-400 text-sm">Nuevo Cliente</h3>
-            <form onSubmit={guardarCliente} className="bg-slate-800 p-3.5 rounded-xl space-y-2 border border-slate-700">
-              <input type="text" placeholder="Nombre / Razón Social" value={nombreCli} onChange={e=>setNombreCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-              <input type="text" placeholder="Dirección" value={dirCli} onChange={e=>setDirCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-              <input type="text" placeholder="Localidad" value={locCli} onChange={e=>setLocCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-              <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg">Guardar Cliente</button>
-            </form>
+          {/* Menú Superior de Pestañas */}
+          <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
+            <button onClick={() => setVista('clientes')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${vista === 'clientes' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Clientes</button>
+            <button onClick={() => setVista('pedidos')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${vista === 'pedidos' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Pedidos ({pedidosDelVendedor.length})</button>
+          </div>
 
-            {/* Buscar y Lista Clientes */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-400">Buscar Cliente:</h4>
-              <input type="text" placeholder="Buscar por nombre, localidad..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} className="w-full bg-slate-800 text-xs p-2.5 rounded-xl border border-slate-700 text-white"/>
+          {vista === 'clientes' ? (
+            <div className="space-y-4">
+              <h3 className="font-bold text-indigo-400 text-sm">Nuevo Cliente</h3>
+              <form onSubmit={guardarCliente} className="bg-slate-800 p-3.5 rounded-xl space-y-2 border border-slate-700">
+                <input type="text" placeholder="Nombre / Razón Social" value={nombreCli} onChange={e=>setNombreCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+                <input type="text" placeholder="Dirección" value={dirCli} onChange={e=>setDirCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+                <input type="text" placeholder="Localidad" value={locCli} onChange={e=>setLocCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg">Guardar Cliente</button>
+              </form>
 
-              <div className="space-y-2 pt-1">
-                {clientesFiltrados.length === 0 ? (
-                  <div className="text-center text-xs text-slate-500 py-4">No hay clientes encontrados.</div>
-                ) : (
-                  clientesFiltrados.map(c => (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-400">Buscar Cliente:</h4>
+                <input type="text" placeholder="Buscar por nombre, localidad..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} className="w-full bg-slate-800 text-xs p-2.5 rounded-xl border border-slate-700 text-white"/>
+
+                <div className="space-y-2 pt-1">
+                  {clientesFiltrados.map(c => (
                     <div key={c.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
                       <div>
                         <div className="font-bold text-xs text-white">{c.nombre}</div>
                         <div className="text-[11px] text-slate-400">📍 {c.direccion} - <strong className="text-indigo-300">{c.localidad}</strong></div>
                       </div>
                       <div className="flex gap-2 pt-1">
-                        <button onClick={() => setClienteSeleccionado(c)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-[11px] font-bold py-1.5 rounded-lg">
+                        <button onClick={() => iniciarNuevoPedido(c)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-[11px] font-bold py-1.5 rounded-lg">
                           + Tomar Pedido
                         </button>
                         <button onClick={() => eliminarCliente(c.id)} className="bg-red-500/20 text-red-400 hover:bg-red-500/30 text-[11px] px-2.5 py-1.5 rounded-lg border border-red-500/30">
@@ -325,11 +403,62 @@
                         </button>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* VISTA DE PEDIDOS Y FIN DE RECORRIDO */
+            <div className="space-y-4">
+              {/* Botones de Generación de PDFs */}
+              <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
+                <h3 className="font-bold text-amber-400 text-xs">🏁 Opciones de Cierre del Día</h3>
+                <button onClick={generarPDFTodosLosPedidos} className="w-full bg-amber-600 hover:bg-amber-500 text-xs font-bold py-2.5 rounded-lg text-white">
+                  📄 Generar PDF (Todos los Pedidos)
+                </button>
+                <button onClick={generarPDFConsolidado} className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">
+                  📊 Generar Consolidado de Carga ($)
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-400">Listado de Pedidos Guardados:</h4>
+                {pedidosDelVendedor.length === 0 ? (
+                  <div className="text-center text-xs text-slate-500 py-6">No hay pedidos tomados en el día.</div>
+                ) : (
+                  pedidosDelVendedor.map(p => (
+                    <div key={p.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-bold text-xs text-white">{p.cliente.nombre}</div>
+                          <div className="text-[10px] text-slate-400">{p.nroBoleta} - {p.fecha}</div>
+                        </div>
+                        <span className="font-bold text-emerald-400 text-xs">${p.total}</span>
+                      </div>
+
+                      <div className="text-[11px] text-slate-300 bg-slate-900/50 p-2 rounded-lg space-y-0.5">
+                        {p.items.map((it, idx) => (
+                          <div key={idx} className="flex justify-between">
+                            <span>{it.cantidad}x {it.descripcion}</span>
+                            <span>${it.subtotal}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex gap-2 pt-1">
+                        <button onClick={() => editarPedidoExistente(p)} className="flex-1 bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 text-[11px] font-bold py-1.5 rounded-lg border border-amber-500/30">
+                          ✏️ Modificar
+                        </button>
+                        <button onClick={() => cancelarPedido(p.id)} className="bg-red-500/20 text-red-400 hover:bg-red-500/30 text-[11px] px-3 py-1.5 rounded-lg border border-red-500/30">
+                          ❌ Cancelar
+                        </button>
+                      </div>
+                    </div>
                   ))
                 )}
               </div>
             </div>
-          </div>
+          )}
         </div>
       );
     }
