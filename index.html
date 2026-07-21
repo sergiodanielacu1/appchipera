@@ -1,3 +1,194 @@
-<head> ... </head>:
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0f172a">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VentasApp</title>
+  
+  <!-- Configuración PWA / Instalable -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+
+  <!-- Tailwind CSS para Estilos -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React y Lucide Icons -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-900 text-slate-100">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function App() {
+      const [vendedores, setVendedores] = useState(() => {
+        return JSON.parse(localStorage.getItem('vendedores')) || [
+          { id: 1, usuario: 'admin', clave: '1234', nombre: 'Admin General', esAdmin: true },
+          { id: 2, usuario: 'vendedor1', clave: '1234', nombre: 'Carlos Gómez', esAdmin: false }
+        ];
+      });
+
+      const [clientes, setClientes] = useState(() => {
+        return JSON.parse(localStorage.getItem('clientes')) || [
+          { id: 1, nombre: 'Almacén Don Pedro', direccion: 'Av. San Martín 1420', localidad: 'González Catán', vendedorId: 2 }
+        ];
+      });
+
+      const [usuarioActual, setUsuarioActual] = useState(null);
+      const [inputUser, setInputUser] = useState('');
+      const [inputPass, setInputPass] = useState('');
+      const [error, setError] = useState('');
+
+      // Formulario cliente
+      const [nombreCli, setNombreCli] = useState('');
+      const [dirCli, setDirCli] = useState('');
+      const [locCli, setLocCli] = useState('');
+      const [busqueda, setBusqueda] = useState('');
+
+      // Formulario vendedor (Admin)
+      const [nuevoUser, setNuevoUser] = useState('');
+      const [nuevaClave, setNuevaClave] = useState('');
+      const [nuevoNombre, setNuevoNombre] = useState('');
+
+      useEffect(() => {
+        localStorage.setItem('vendedores', JSON.stringify(vendedores));
+      }, [vendedores]);
+
+      useEffect(() => {
+        localStorage.setItem('clientes', JSON.stringify(clientes));
+      }, [clientes]);
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const user = vendedores.find(v => v.usuario.toLowerCase() === inputUser.toLowerCase() && v.clave === inputPass);
+        if (user) {
+          setUsuarioActual(user);
+          setError('');
+        } else {
+          setError('Usuario o contraseña incorrectos');
+        }
+      };
+
+      const guardarCliente = (e) => {
+        e.preventDefault();
+        if (!nombreCli || !dirCli || !locCli) return;
+        const nuevo = {
+          id: Date.now(),
+          nombre: nombreCli,
+          direccion: dirCli,
+          localidad: locCli,
+          vendedorId: usuarioActual.id
+        };
+        setClientes([...clientes, nuevo]);
+        setNombreCli(''); setDirCli(''); setLocCli('');
+      };
+
+      const guardarVendedor = (e) => {
+        e.preventDefault();
+        if (!nuevoUser || !nuevaClave || !nuevoNombre) return;
+        const nuevo = {
+          id: Date.now(),
+          usuario: nuevoUser,
+          clave: nuevaClave,
+          nombre: nuevoNombre,
+          esAdmin: false
+        };
+        setVendedores([...vendedores, nuevo]);
+        setNuevoUser(''); setNuevaClave(''); setNuevoNombre('');
+      };
+
+      if (!usuarioActual) {
+        return (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="bg-slate-800 p-6 rounded-2xl w-full max-w-sm border border-slate-700 shadow-xl space-y-4">
+              <h1 className="text-xl font-bold text-center text-white">VentasApp Offline</h1>
+              {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+              <form onSubmit={handleLogin} className="space-y-3">
+                <input 
+                  type="text" placeholder="Usuario" value={inputUser} onChange={e=>setInputUser(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                />
+                <input 
+                  type="password" placeholder="Contraseña" value={inputPass} onChange={e=>setInputPass(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                />
+                <button className="w-full bg-indigo-600 font-semibold py-2.5 rounded-xl text-sm">Ingresar</button>
+              </form>
+              <div className="text-[11px] text-slate-400 text-center pt-2">
+                Prueba Demo: <b>admin / 1234</b> o <b>vendedor1 / 1234</b>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      const clientesVisibles = clientes.filter(c => {
+        const coincideQuery = c.nombre.toLowerCase().includes(busqueda.toLowerCase()) || c.localidad.toLowerCase().includes(busqueda.toLowerCase());
+        return usuarioActual.esAdmin ? coincideQuery : (coincideQuery && c.vendedorId === usuarioActual.id);
+      });
+
+      return (
+        <div className="min-h-screen max-w-md mx-auto bg-slate-900 flex flex-col p-4 space-y-4">
+          <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+            <div>
+              <h2 className="font-bold text-white">{usuarioActual.nombre}</h2>
+              <span className="text-xs text-indigo-400">{usuarioActual.esAdmin ? 'Administrador' : 'Vendedor'}</span>
+            </div>
+            <button onClick={() => setUsuarioActual(null)} className="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Salir</button>
+          </div>
+
+          {usuarioActual.esAdmin ? (
+            <div className="space-y-4">
+              <h3 className="font-bold text-amber-400 text-sm">Gestión de Vendedores</h3>
+              <form onSubmit={guardarVendedor} className="bg-slate-800 p-3 rounded-xl space-y-2 border border-slate-700">
+                <input type="text" placeholder="Nombre Completo" value={nuevoNombre} onChange={e=>setNuevoNombre(e.target.value)} className="w-full bg-slate-900 text-xs p-2 rounded-lg border border-slate-700"/>
+                <input type="text" placeholder="Usuario" value={nuevoUser} onChange={e=>setNuevoUser(e.target.value)} className="w-full bg-slate-900 text-xs p-2 rounded-lg border border-slate-700"/>
+                <input type="password" placeholder="Contraseña" value={nuevaClave} onChange={e=>setNuevaClave(e.target.value)} className="w-full bg-slate-900 text-xs p-2 rounded-lg border border-slate-700"/>
+                <button className="w-full bg-amber-600 text-xs font-bold py-2 rounded-lg">Crear Vendedor</button>
+              </form>
+
+              <h4 className="text-xs font-bold text-slate-400">Lista de Vendedores Registrados:</h4>
+              <div className="space-y-1.5">
+                {vendedores.map(v => (
+                  <div key={v.id} className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50 flex justify-between text-xs">
+                    <span>{v.nombre} (@{v.usuario})</span>
+                    <span className="text-slate-400">{v.esAdmin ? 'Admin' : 'Vendedor'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <h3 className="font-bold text-indigo-400 text-sm">Cargar Nuevo Cliente</h3>
+              <form onSubmit={guardarCliente} className="bg-slate-800 p-3 rounded-xl space-y-2 border border-slate-700">
+                <input type="text" placeholder="Nombre o Razón Social" value={nombreCli} onChange={e=>setNombreCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2 rounded-lg border border-slate-700"/>
+                <input type="text" placeholder="Dirección" value={dirCli} onChange={e=>setDirCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2 rounded-lg border border-slate-700"/>
+                <input type="text" placeholder="Localidad" value={locCli} onChange={e=>setLocCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2 rounded-lg border border-slate-700"/>
+                <button className="w-full bg-indigo-600 text-xs font-bold py-2 rounded-lg">Guardar Cliente</button>
+              </form>
+
+              <div className="space-y-2">
+                <input type="text" placeholder="Buscar clientes..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} className="w-full bg-slate-800 text-xs p-2 rounded-xl border border-slate-700"/>
+                <div className="space-y-2">
+                  {clientesVisibles.map(c => (
+                    <div key={c.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700">
+                      <div className="font-bold text-xs text-white">{c.nombre}</div>
+                      <div className="text-[11px] text-slate-400">{c.direccion} - <strong className="text-indigo-300">{c.localidad}</strong></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
