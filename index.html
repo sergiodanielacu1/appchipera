@@ -394,24 +394,64 @@
         localStorage.setItem(KEY_CLIENTES, JSON.stringify(clientesIniciales));
       }
 if (!localStorage.getItem(KEY_ARTICULOS)) {
-        const articulosIniciales = [
-          { id: '00004', nombre: 'ROSAMONTE DESPALADA 500g.', costo: 1452.00, margen: 25, precio: 1815.00, activo: true, protegido: true },
-          { id: '00005', nombre: 'DOÑA IRMA SEMOLADO N3 x 500g', costo: 1050.00, margen: 25, precio: 1312.50, activo: true, protegido: true },
-          { id: '00010', nombre: 'SOL PAMPEANO AVE MARIA x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
-          { id: '00024', nombre: 'DISPLAY JUGO RINDE DOS MANZANA', costo: 354.99, margen: 25, precio: 443.74, activo: true, protegido: true },
-          { id: '00039', nombre: 'TUTUCA BURBUJA x 80g', costo: 631.99, margen: 25, precio: 789.99, activo: true, protegido: true },
-          { id: '00049', nombre: 'PISINGALLO AGROMAR x 400g', costo: 327.50, margen: 25, precio: 409.38, activo: true, protegido: true },
-          { id: '00062', nombre: 'SAL FINA TRESAL x 500g', costo: 408.00, margen: 25, precio: 510.00, activo: true, protegido: true },
-          { id: '00118', nombre: 'YERBA NATURA VERDE OSCURA x 500g', costo: 1095.00, margen: 25, precio: 1368.75, activo: true, protegido: true },
-          { id: '00916', nombre: 'MONTELIRIO NIDOS N°1 x 500g', costo: 1616.00, margen: 25, precio: 2020.00, activo: true, protegido: true }
-          // Puedes seguir agregando el resto de tus artículos aquí respetando este formato
-        ];
-        localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulosIniciales));
-      }
+    const articulosIniciales = [
+      { id: '00001', nombre: 'DOÑA IRMA SEMOLADO N3 x 500g', costo: 1050.00, margen: 25, precio: 1312.50, activo: true, protegido: true },
+      { id: '00002', nombre: 'DOÑA IRMA SEMOLADO VERDE x 500g', costo: 1050.00, margen: 25, precio: 1312.50, activo: true, protegido: true },
+      { id: '00003', nombre: 'DOÑA IRMA SEMOLADO ROJO x 500g', costo: 1050.00, margen: 25, precio: 1312.50, activo: true, protegido: true },
+      { id: '00004', nombre: 'SOL PAMPEANO AVE MARIA x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00005', nombre: 'SOL PAMPEANO DEDALITO x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00006', nombre: 'SOL PAMPEANO CODITOS x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00007', nombre: 'SOL PAMPEANO DEDAL x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00008', nombre: 'SOL PAMPEANO MOSTACHOL LISO x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00009', nombre: 'SOL PAMPEANO CODO x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00010', nombre: 'SOL PAMPEANO CELENTANO x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00011', nombre: 'SOL PAMPEANO MOSTACHOL RAYADO x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00012', nombre: 'SOL PAMPEANO RIGATTY x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00013', nombre: 'SOL PAMPEANO TIRABUZON x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00014', nombre: 'SPAGHETTI SOL PAMPEANO x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00015', nombre: 'TALLARIN SOL PAMPEANO x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+      { id: '00016', nombre: 'FORATTI SOL PAMPEANO x 500g', costo: 731.88, margen: 25, precio: 914.85, activo: true, protegido: true },
+      { id: '00017', nombre: 'SOL PAMPEANO MOÑO x 500g', costo: 988.53, margen: 25, precio: 1235.66, activo: true, protegido: true },
+      { id: '00018', nombre: 'TUTUCA BURBUJA x 80g', costo: 631.99, margen: 25, precio: 789.99, activo: true, protegido: true },
+      { id: '00019', nombre: 'CHIZITO BURBUJA x 80g', costo: 631.99, margen: 25, precio: 789.99, activo: true, protegido: true },
+      { id: '00020', nombre: 'BOLITA COLORES BURBUJA x 80g', costo: 631.99, margen: 25, precio: 789.99, activo: true, protegido: true },
+      { id: '00021', nombre: 'PIZZITAS BURBUJA x 80g', costo: 631.99, margen: 25, precio: 789.99, activo: true, protegido: true },
+      { id: '00022', nombre: 'SALSA DE FRUTILLA TAHITI x 325g', costo: 2119.99, margen: 25, precio: 2649.99, activo: true, protegido: true },
+      { id: '00023', nombre: 'x 250g MIEL PAMPERA', costo: 726.99, margen: 25, precio: 908.74, activo: true, protegido: true },
+      { id: '00024', nombre: 'x 500g POTE MIEL PAMPERA', costo: 1350.00, margen: 25, precio: 1687.50, activo: true, protegido: true },
+      { id: '00025', nombre: 'x 350g MIEL LIMON Y EUCALIPTO', costo: 1281.99, margen: 25, precio: 1602.49, activo: true, protegido: true },
+      { id: '00026', nombre: 'x 350 gs MIEL LA CHACRA', costo: 1165.99, margen: 25, precio: 1457.49, activo: true, protegido: true },
+      { id: '00027', nombre: 'ARVEJAS DOÑA LUISA x 350g', costo: 0.00, margen: 25, precio: 0.00, activo: true, protegido: true },
+      { id: '00028', nombre: 'EXCLUSIVO PAN RAYADO x 400g', costo: 539.99, margen: 25, precio: 674.99, activo: true, protegido: true },
+      { id: '00029', nombre: 'EXCLUSIVO REBOZADOR x 400g', costo: 539.99, margen: 25, precio: 674.99, activo: true, protegido: true },
+      { id: '00030', nombre: 'LENTEJA INALPA x 350g', costo: 0.00, margen: 25, precio: 0.00, activo: true, protegido: true },
+      { id: '00031', nombre: 'JUGO DE LIMON SILVA x 1 l.', costo: 1624.99, margen: 25, precio: 2031.24, activo: true, protegido: true },
+      { id: '00032', nombre: 'JUGO DE LIMON SILVA x 500cm', costo: 1200.00, margen: 25, precio: 1500.00, activo: true, protegido: true },
+      { id: '00033', nombre: 'x 1 lt. VINAGRE SILVA', costo: 827.99, margen: 25, precio: 1034.99, activo: true, protegido: true },
+      { id: '00034', nombre: 'x 500cm VINAGRE SILVA', costo: 490.00, margen: 25, precio: 612.50, activo: true, protegido: true },
+      { id: '00035', nombre: 'GRASA VACUNA ESANI x 500g', costo: 2214.00, margen: 25, precio: 2767.50, activo: true, protegido: true },
+      { id: '00036', nombre: 'GRASA CERDO ESANI x 500g', costo: 2325.00, margen: 25, precio: 2906.25, activo: true, protegido: true },
+      { id: '00037', nombre: 'YERBA NATURA VERDE OSCURA x 500g', costo: 1095.00, margen: 25, precio: 1368.75, activo: true, protegido: true },
+      { id: '00038', nombre: 'MATECOCIDO NATURA', costo: 511.00, margen: 25, precio: 638.75, activo: true, protegido: true },
+      { id: '00039', nombre: 'MATECOCIDO CRYSF', costo: 1277.50, margen: 25, precio: 1596.88, activo: true, protegido: true },
+      { id: '00040', nombre: 'REXONA ODORONO', costo: 1079.99, margen: 25, precio: 1349.99, activo: true, protegido: true },
+      { id: '00041', nombre: 'GRASA VACUNA KAMOTE x 500g', costo: 2105.99, margen: 25, precio: 2632.49, activo: true, protegido: true },
+      { id: '00042', nombre: 'GRASA CERDO ARGENGRASS x 500g', costo: 2430.00, margen: 25, precio: 3037.50, activo: true, protegido: true },
+      { id: '00043', nombre: 'ARROZ ROJO ALA x 1kg', costo: 1784.00, margen: 25, precio: 2230.00, activo: true, protegido: true },
+      { id: '00044', nombre: 'COPOS AZUCARADOS 150G', costo: 524.30, margen: 25, precio: 655.38, activo: true, protegido: true },
+      { id: '00045', nombre: 'SALSA BUFFALO TAHITI x 270g', costo: 2045.99, margen: 25, precio: 2557.49, activo: true, protegido: true },
+      { id: '00046', nombre: 'SALSA DE QUESO CHEDDAR TAHITI x 265g', costo: 2205.50, margen: 25, precio: 2756.88, activo: true, protegido: true },
+      { id: '00047', nombre: 'SALSA BARBACOA TAHITI x 270g', costo: 1844.50, margen: 25, precio: 2305.63, activo: true, protegido: true },
+      { id: '00048', nombre: 'SIN SAL SOJA TAHITI x 265g', costo: 1738.50, margen: 25, precio: 2173.13, activo: true, protegido: true },
+      { id: '00049', nombre: 'SOL PAMPEANO TRICOLOR MOSTACHOL x 500g', costo: 915.78, margen: 25, precio: 1144.73, activo: true, protegido: true },
+      { id: '00050', nombre: 'SOL PAMPEANO TRICOLOR TIRABUZON x 500g', costo: 915.78, margen: 25, precio: 1144.73, activo: true, protegido: true }
+    ];
+    localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulosIniciales));
+}
 
-      if (!localStorage.getItem(KEY_PEDIDOS)) localStorage.setItem(KEY_PEDIDOS, JSON.stringify([]));
-      if (!localStorage.getItem(KEY_HISTORIAL)) localStorage.setItem(KEY_HISTORIAL, JSON.stringify([]));
-      if (!localStorage.getItem(KEY_COLA_OFFLINE)) localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify([]));
+if (!localStorage.getItem(KEY_PEDIDOS)) localStorage.setItem(KEY_PEDIDOS, JSON.stringify([]));
+if (!localStorage.getItem(KEY_HISTORIAL)) localStorage.setItem(KEY_HISTORIAL, JSON.stringify([]));
+if (!localStorage.getItem(KEY_COLA_OFFLINE)) localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify([]));
 
     // --- MANEJO DE ESTADO ONLINE / OFFLINE ---
     function configurarMonitoreoConexion() {
