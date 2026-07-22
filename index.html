@@ -185,7 +185,7 @@
                 <span class="text-muted">Vendedor: <strong id="diaVendedorNombre"></strong></span>
               </div>
               <div class="d-flex gap-2">
-                <button class="btn btn-outline-danger" onclick="generarPDFConsolidadoVendedor()"><i class="fa-solid fa-file-pdf me-1"></i>Exportar PDF</button>
+                <button class="btn btn-outline-danger" onclick="exportarDoblePDFVendedor()"><i class="fa-solid fa-file-pdf me-1"></i>Exportar PDF</button>
                 <button class="btn btn-warning" onclick="efectuarCierreDeDia()"><i class="fa-solid fa-lock me-1"></i>Cierre de Día</button>
               </div>
             </div>
@@ -211,6 +211,10 @@
               <div class="col-md-5">
                 <label class="form-label me-2 font-weight-bold">Seleccionar Vendedor:</label>
                 <select id="selectSeguimientoVendedor" class="form-select" onchange="renderizarSeguimientoVendedor()"></select>
+              </div>
+              <div class="col-md-3 d-flex gap-2 justify-content-end mt-2 mt-md-0">
+                <button class="btn btn-outline-danger btn-sm" onclick="exportarBoletasAdmin()"><i class="fa-solid fa-receipt me-1"></i>PDF Boletas</button>
+                <button class="btn btn-outline-dark btn-sm" onclick="exportarConsolidadoAdmin()"><i class="fa-solid fa-file-invoice me-1"></i>PDF Consolidado</button>
               </div>
             </div>
           </div>
@@ -315,6 +319,7 @@
     // --- ESTADO GLOBAL ---
     let usuarioActual = null;
     let pedidoTemporal = [];
+    let articuloSeleccionadoId = null;
 
     // --- INICIALIZACIÓN DE LA APLICACIÓN ---
     window.addEventListener('DOMContentLoaded', () => {
@@ -384,7 +389,6 @@
       const cola = JSON.parse(localStorage.getItem(KEY_COLA_OFFLINE) || "[]");
       if (cola.length > 0) {
         console.log("Sincronizando con la nube/servidor:", cola);
-        // Aquí se simula el envío diferido cuando vuelve internet
         localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify([]));
       }
     }
@@ -406,7 +410,7 @@
       const enco = usuarios.find(x => x.user.toLowerCase() === u && x.pass === p);
       if (enco) {
         usuarioActual = enco;
-        localStorage.setItem(KEY_SESSION, JSON.stringify(enco)); // Guardar sesión
+        localStorage.setItem(KEY_SESSION, JSON.stringify(enco));
         iniciarVistaDashboard();
       } else {
         alert('Usuario o contraseña incorrectos.');
@@ -430,6 +434,7 @@
       if (usuarioActual.rol === 'admin') {
         renderizarTablaVendedores();
         renderizarTablaArticulos();
+        cargarVendedoresEnSeguimiento();
       }
 
       cambiarSolapa('pedidos');
@@ -443,7 +448,7 @@
 
     function cerrarSesion() {
       usuarioActual = null;
-      localStorage.removeItem(KEY_SESSION); // Limpiar sesión solo al hacer Logout explicito
+      localStorage.removeItem(KEY_SESSION);
       document.getElementById('pantallaLogin').style.display = 'flex';
       document.getElementById('topNavbar').style.display = 'none';
       document.getElementById('panelPrincipal').style.display = 'none';
@@ -652,7 +657,7 @@
     }
 
     function eliminarArticulo(id) {
-      if (confirm('¿Desea eliminar definitivamente este producto?')) {
+      if (confirm('¿Desea eliminar este producto del catálogo?')) {
         let articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
         articulos = articulos.filter(a => a.id !== id);
         localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulos));
@@ -660,54 +665,63 @@
       }
     }
 
-    // --- AUTOCOMPLETADO (Solo productos ACTIVOS) ---
-    function autocompleteArticulo(val) {
-      const div = document.getElementById('sugerenciasArticulos');
-      div.innerHTML = '';
-      if (!val.trim()) return;
+    // --- MANEJO DE PEDIDOS EN VENTA ---
+    function autocompleteArticulo(q) {
+      const sug = document.getElementById('sugerenciasArticulos');
+      sug.innerHTML = '';
+      if (!q.trim()) return;
 
       const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
-      // Filtrar solo los artículos ACTIVOS
-      const coincidencias = articulos.filter(a => (a.activo !== false) && a.nombre.toLowerCase().includes(val.toLowerCase()));
+      const filtrados = articulos.filter(a => a.activo !== false && a.nombre.toLowerCase().includes(q.toLowerCase()));
 
-      coincidencias.forEach(a => {
-        const item = document.createElement('button');
-        item.type = 'button';
+      filtrados.forEach(a => {
+        const item = document.createElement('a');
         item.className = 'list-group-item list-group-item-action';
-        item.innerText = `${a.nombre} - $${a.precio.toFixed(2)}`;
-        item.onclick = () => {
+        item.href = '#';
+        item.innerHTML = `<strong>${a.nombre}</strong> - $${a.precio.toFixed(2)}`;
+        item.onclick = (e) => {
+          e.preventDefault();
           document.getElementById('buscarArticuloInput').value = a.nombre;
-          document.getElementById('buscarArticuloInput').dataset.artId = a.id;
-          div.innerHTML = '';
+          articuloSeleccionadoId = a.id;
+          sug.innerHTML = '';
         };
-        div.appendChild(item);
+        sug.appendChild(item);
       });
     }
 
     function agregarArticuloAPedido() {
-      const input = document.getElementById('buscarArticuloInput');
-      const nombreArt = input.value.trim();
-      const cant = parseInt(document.getElementById('cantArticuloInput').value) || 1;
+      const nombreInput = document.getElementById('buscarArticuloInput').value.trim();
+      const cantidad = parseInt(document.getElementById('cantArticuloInput').value) || 1;
       const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
 
-      const art = articulos.find(a => (a.activo !== false) && a.nombre.toLowerCase() === nombreArt.toLowerCase());
-      if (!art) return alert('Seleccione un producto activo válido del catálogo.');
+      let art = articulos.find(a => a.id === articuloSeleccionadoId);
+      if (!art) {
+        art = articulos.find(a => a.nombre.toLowerCase() === nombreInput.toLowerCase() && a.activo !== false);
+      }
 
-      const subtotal = art.precio * cant;
-      pedidoTemporal.push({
-        id: art.id,
-        nombre: art.nombre,
-        precio: art.precio,
-        cantidad: cant,
-        subtotal: subtotal
-      });
+      if (!art) return alert('Seleccione un artículo válido activo.');
 
-      input.value = '';
-      document.getElementById('cantArticuloInput').value = 1;
-      renderizarDetallePedidoTemp();
+      const itemExistente = pedidoTemporal.find(p => p.articuloId === art.id);
+      if (itemExistente) {
+        itemExistente.cantidad += cantidad;
+        itemExistente.subtotal = itemExistente.cantidad * itemExistente.precio;
+      } else {
+        pedidoTemporal.push({
+          articuloId: art.id,
+          nombre: art.nombre,
+          precio: art.precio,
+          cantidad: cantidad,
+          subtotal: art.precio * cantidad
+        });
+      }
+
+      document.getElementById('buscarArticuloInput').value = '';
+      document.getElementById('cantArticuloInput').value = '1';
+      articuloSeleccionadoId = null;
+      renderizarTablaDetallePedido();
     }
 
-    function renderizarDetallePedidoTemp() {
+    function renderizarTablaDetallePedido() {
       const tbody = document.getElementById('tablaDetallePedido');
       tbody.innerHTML = '';
       let total = 0;
@@ -720,7 +734,7 @@
             <td>${item.cantidad}</td>
             <td>$${item.precio.toFixed(2)}</td>
             <td>$${item.subtotal.toFixed(2)}</td>
-            <td><button class="btn btn-sm btn-danger" onclick="quitarArticuloPedidoTemp(${index})"><i class="fa-solid fa-xmark"></i></button></td>
+            <td><button class="btn btn-sm btn-outline-danger" onclick="quitarItemPedido(${index})"><i class="fa-solid fa-xmark"></i></button></td>
           </tr>
         `;
       });
@@ -728,35 +742,35 @@
       document.getElementById('totalPedidoActual').innerText = total.toFixed(2);
     }
 
-    function quitarArticuloPedidoTemp(index) {
+    function quitarItemPedido(index) {
       pedidoTemporal.splice(index, 1);
-      renderizarDetallePedidoTemp();
+      renderizarTablaDetallePedido();
     }
 
     function guardarPedidoCompleto() {
-      const selCliente = document.getElementById('selectClientePedido').value;
-      if (!selCliente) return alert('Seleccione un cliente para registrar el pedido.');
-      if (pedidoTemporal.length === 0) return alert('Cargue al menos un producto.');
+      const clienteId = document.getElementById('selectClientePedido').value;
+      if (!clienteId) return alert('Debe seleccionar un cliente.');
+      if (pedidoTemporal.length === 0) return alert('Agregue al menos un producto al pedido.');
 
       const clientes = JSON.parse(localStorage.getItem(KEY_CLIENTES) || "[]");
-      const cli = clientes.find(c => c.id === selCliente);
+      const cliente = clientes.find(c => c.id === clienteId);
+
       const total = pedidoTemporal.reduce((sum, item) => sum + item.subtotal, 0);
 
       const nuevoPedido = {
-        id: 'PED-' + Date.now(),
+        id: Date.now().toString(),
         vendedorUser: usuarioActual.user,
         vendedorNombre: usuarioActual.nombre,
-        cliente: cli,
+        cliente: cliente,
         items: [...pedidoTemporal],
         total: total,
-        fecha: new Date().toLocaleString()
+        fecha: new Date().toLocaleString('es-AR')
       };
 
       let pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
       pedidos.push(nuevoPedido);
       localStorage.setItem(KEY_PEDIDOS, JSON.stringify(pedidos));
 
-      // Guardar en cola offline si no hay red
       if (!navigator.onLine) {
         let cola = JSON.parse(localStorage.getItem(KEY_COLA_OFFLINE) || "[]");
         cola.push(nuevoPedido);
@@ -764,38 +778,37 @@
       }
 
       pedidoTemporal = [];
-      renderizarDetallePedidoTemp();
+      renderizarTablaDetallePedido();
       renderizarDiaActivo();
-      alert('Pedido guardado correctamente' + (!navigator.onLine ? ' (En modo offline).' : '.'));
+      alert('¡Pedido guardado con éxito!');
     }
 
-    // --- DIA ACTIVO Y CIERRE ---
+    // --- DIA ACTIVO ---
     function renderizarDiaActivo() {
+      if (!usuarioActual) return;
       document.getElementById('diaVendedorNombre').innerText = usuarioActual.nombre;
+
       const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
       const misPedidos = pedidos.filter(p => p.vendedorUser === usuarioActual.user);
-      const contenedor = document.getElementById('listaPedidosDiaActivo');
-      contenedor.innerHTML = '';
+      const cont = document.getElementById('listaPedidosDiaActivo');
+      cont.innerHTML = '';
 
       if (misPedidos.length === 0) {
-        contenedor.innerHTML = `<div class="col-12"><p class="text-muted">No hay pedidos registrados en el recorrido activo de hoy.</p></div>`;
+        cont.innerHTML = '<div class="col-12"><p class="text-muted text-center py-4">No hay pedidos registrados en el recorrido actual.</p></div>';
         return;
       }
 
       misPedidos.forEach(p => {
         let itemsHtml = p.items.map(i => `<li>${i.cantidad}x ${i.nombre} ($${i.subtotal.toFixed(2)})</li>`).join('');
-        contenedor.innerHTML += `
-          <div class="col-md-6 mb-3">
-            <div class="card p-3 border-start border-4 border-primary">
-              <div class="d-flex justify-content-between">
-                <strong>${p.cliente.nombre}</strong>
-                <span class="badge bg-secondary">${p.fecha}</span>
-              </div>
-              <p class="small text-muted mb-1">${p.cliente.direccion} - ${p.cliente.localidad}</p>
-              <ul>${itemsHtml}</ul>
-              <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 text-success">Total: $${p.total.toFixed(2)}</h5>
-                <button class="btn btn-sm btn-outline-danger" onclick="eliminarPedidoActivo('${p.id}')"><i class="fa-solid fa-trash"></i></button>
+        cont.innerHTML += `
+          <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card h-100 border-start border-4 border-primary">
+              <div class="card-body">
+                <h6 class="card-title font-weight-bold">${p.cliente.nombre}</h6>
+                <p class="small text-muted mb-1"><i class="fa-solid fa-location-dot me-1"></i>${p.cliente.direccion}, ${p.cliente.localidad}</p>
+                <p class="small text-muted"><i class="fa-solid fa-clock me-1"></i>${p.fecha}</p>
+                <ul class="small ps-3">${itemsHtml}</ul>
+                <h6 class="text-end text-primary mb-0">Total: $${p.total.toFixed(2)}</h6>
               </div>
             </div>
           </div>
@@ -803,71 +816,258 @@
       });
     }
 
-    function eliminarPedidoActivo(id) {
-      if (confirm('¿Desea eliminar este pedido del día activo?')) {
-        let pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
-        pedidos = pedidos.filter(p => p.id !== id);
-        localStorage.setItem(KEY_PEDIDOS, JSON.stringify(pedidos));
-        renderizarDiaActivo();
-      }
+    // --- GENERACIÓN DE 2 PDFS (BOLETAS Y CONSOLIDADO) ---
+    function exportarDoblePDFVendedor() {
+      const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
+      const misPedidos = pedidos.filter(p => p.vendedorUser === usuarioActual.user);
+      
+      if (misPedidos.length === 0) return alert("No hay pedidos activos para exportar.");
+
+      generarPDFBoletas(misPedidos, usuarioActual.nombre);
+      generarPDFConsolidado(misPedidos, usuarioActual.nombre);
     }
 
+    // PDF 1: Boletas de clientes (Agrupadas hasta 3 por hoja A4)
+    function generarPDFBoletas(pedidosList, vendedorNombre) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      
+      let currentY = 10;
+      let countInPage = 0;
+      const maxHeightPerTicket = 85; 
+
+      pedidosList.forEach((pedido, idx) => {
+        if (countInPage >= 3 || (currentY + maxHeightPerTicket) > 280) {
+          doc.addPage();
+          currentY = 10;
+          countInPage = 0;
+        }
+
+        // Borde del Ticket/Boleta
+        doc.setLineWidth(0.3);
+        doc.rect(10, currentY, 190, 82);
+
+        // Cabecera Boleta
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`BOLETA DE PEDIDO #${pedido.id.slice(-6)}`, 15, currentY + 7);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Vendedor: ${vendedorNombre} | Fecha: ${pedido.fecha}`, 100, currentY + 7);
+
+        doc.line(10, currentY + 10, 200, currentY + 10);
+
+        // Datos Cliente
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Cliente: ${pedido.cliente.nombre}`, 15, currentY + 16);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Dirección: ${pedido.cliente.direccion} (${pedido.cliente.localidad})`, 15, currentY + 21);
+        doc.text(`Teléfono: ${pedido.cliente.telefono || 'N/A'}`, 130, currentY + 21);
+
+        doc.line(10, currentY + 24, 200, currentY + 24);
+
+        // Encabezado Detalle
+        doc.setFont('helvetica', 'bold');
+        doc.text('Cant.', 15, currentY + 29);
+        doc.text('Producto', 35, currentY + 29);
+        doc.text('P. Unit', 140, currentY + 29);
+        doc.text('Subtotal', 170, currentY + 29);
+        doc.line(10, currentY + 31, 200, currentY + 31);
+
+        // Items (hasta 6 por miniboleta para no sobrepasar)
+        doc.setFont('helvetica', 'normal');
+        let itemY = currentY + 36;
+        const visibleItems = pedido.items.slice(0, 6);
+
+        visibleItems.forEach(item => {
+          doc.text(`${item.cantidad}`, 15, itemY);
+          doc.text(`${item.nombre.substring(0, 45)}`, 35, itemY);
+          doc.text(`$${item.precio.toFixed(2)}`, 140, itemY);
+          doc.text(`$${item.subtotal.toFixed(2)}`, 170, itemY);
+          itemY += 5;
+        });
+
+        if (pedido.items.length > 6) {
+          doc.setFontSize(8);
+          doc.text(`...y ${pedido.items.length - 6} productos más.`, 35, itemY);
+        }
+
+        // Pie y Total Boleta
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.line(10, currentY + 72, 200, currentY + 72);
+        doc.text(`TOTAL PEDIDO: $${pedido.total.toFixed(2)}`, 140, currentY + 78);
+
+        currentY += 88;
+        countInPage++;
+      });
+
+      doc.save(`Boletas_Pedidos_${vendedorNombre.replace(/\s+/g, '_')}.pdf`);
+    }
+
+    // PDF 2: Consolidado de Cierre
+    function generarPDFConsolidado(pedidosList, vendedorNombre) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      // Agrupar Totales por Articulo
+      const articulosResumen = {};
+      let totalFacturado = 0;
+      const clientesUnicos = new Set();
+
+      pedidosList.forEach(p => {
+        totalFacturado += p.total;
+        clientesUnicos.add(p.cliente.id);
+
+        p.items.forEach(item => {
+          if (!articulosResumen[item.nombre]) {
+            articulosResumen[item.nombre] = { cantidad: 0, subtotal: 0 };
+          }
+          articulosResumen[item.nombre].cantidad += item.cantidad;
+          articulosResumen[item.nombre].subtotal += item.subtotal;
+        });
+      });
+
+      // Encabezado PDF
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text("RESUMEN CONSOLIDADO DE VENTAS", 15, 18);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Vendedor: ${vendedorNombre}`, 15, 25);
+      doc.text(`Fecha Emisión: ${new Date().toLocaleString('es-AR')}`, 15, 30);
+      doc.text(`Clientes Atendidos: ${clientesUnicos.size}`, 130, 25);
+      doc.text(`Total Pedidos: ${pedidosList.length}`, 130, 30);
+
+      doc.line(15, 34, 195, 34);
+
+      // Tabla de Consolidado
+      doc.setFont('helvetica', 'bold');
+      doc.text("Producto / Descripción", 15, 41);
+      doc.text("Cant. Total", 110, 41);
+      doc.text("Total Vendido ($)", 150, 41);
+      doc.line(15, 44, 195, 44);
+
+      doc.setFont('helvetica', 'normal');
+      let y = 50;
+
+      Object.keys(articulosResumen).forEach(prodNombre => {
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        const data = articulosResumen[prodNombre];
+        doc.text(prodNombre, 15, y);
+        doc.text(`${data.cantidad}`, 110, y);
+        doc.text(`$${data.subtotal.toFixed(2)}`, 150, y);
+        y += 7;
+      });
+
+      doc.line(15, y, 195, y);
+      y += 8;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`TOTAL FACTURACIÓN DÍA: $${totalFacturado.toFixed(2)}`, 110, y);
+
+      doc.save(`Consolidado_Ventas_${vendedorNombre.replace(/\s+/g, '_')}.pdf`);
+    }
+
+    // --- CIERRE DE DIA E HISTORIAL ---
     function efectuarCierreDeDia() {
       let pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
       const misPedidos = pedidos.filter(p => p.vendedorUser === usuarioActual.user);
 
-      if (misPedidos.length === 0) return alert('No hay pedidos en el día activo para cerrar.');
+      if (misPedidos.length === 0) return alert("No tienes pedidos activos para realizar el cierre.");
 
-      if (confirm('¿Confirma el cierre de día? Se archivarán los pedidos del recorrido actual.')) {
+      if (confirm(`¿Confirmar cierre de día? Se procesarán ${misPedidos.length} pedidos.`)) {
         let historial = JSON.parse(localStorage.getItem(KEY_HISTORIAL) || "[]");
+        const totalFacturado = misPedidos.reduce((a, b) => a + b.total, 0);
+
         const cierre = {
-          id: 'CIERRE-' + Date.now(),
+          id: Date.now().toString(),
           vendedorUser: usuarioActual.user,
           vendedorNombre: usuarioActual.nombre,
-          fecha: new Date().toLocaleString(),
-          pedidos: misPedidos,
-          totalMonto: misPedidos.reduce((s, p) => s + p.total, 0)
+          fechaCierre: new Date().toLocaleString('es-AR'),
+          cantPedidos: misPedidos.length,
+          total: totalFacturado,
+          pedidos: misPedidos
         };
 
         historial.push(cierre);
         localStorage.setItem(KEY_HISTORIAL, JSON.stringify(historial));
 
-        // Limpiar pedidos del vendedor activo
+        // Limpiar pedidos activos del vendedor
         pedidos = pedidos.filter(p => p.vendedorUser !== usuarioActual.user);
         localStorage.setItem(KEY_PEDIDOS, JSON.stringify(pedidos));
 
         renderizarDiaActivo();
         renderizarHistorialCierres();
-        alert('Cierre de día guardado con éxito.');
+        alert("¡Cierre de día completado correctamente!");
       }
     }
 
     function renderizarHistorialCierres() {
       const historial = JSON.parse(localStorage.getItem(KEY_HISTORIAL) || "[]");
-      const misCierres = historial.filter(h => h.vendedorUser === usuarioActual.user);
-      const div = document.getElementById('contenedorHistorialCierres');
-      div.innerHTML = '';
+      const cont = document.getElementById('contenedorHistorialCierres');
+      cont.innerHTML = '';
 
-      if (misCierres.length === 0) {
-        div.innerHTML = '<p class="text-muted">No hay cierres históricos archivados.</p>';
+      let cierresVer = historial;
+      if (usuarioActual && usuarioActual.rol !== 'admin') {
+        cierresVer = historial.filter(h => h.vendedorUser === usuarioActual.user);
+      }
+
+      if (cierresVer.length === 0) {
+        cont.innerHTML = '<p class="text-muted text-center py-3">No hay cierres de día registrados.</p>';
         return;
       }
 
-      misCierres.forEach(c => {
-        div.innerHTML += `
-          <div class="card p-3 mb-2 bg-light">
+      cierresVer.reverse().forEach(c => {
+        cont.innerHTML += `
+          <div class="card mb-2 p-3">
             <div class="d-flex justify-content-between align-items-center">
               <div>
-                <h6>Cierre: ${c.fecha}</h6>
-                <p class="mb-0 small text-muted">Pedidos realizados: ${c.pedidos.length} | Total recaudado: $${c.totalMonto.toFixed(2)}</p>
+                <h6 class="mb-0">Cierre: ${c.fechaCierre}</h6>
+                <small class="text-muted">Vendedor: ${c.vendedorNombre} | Pedidos: ${c.cantPedidos}</small>
               </div>
+              <h5 class="text-success mb-0">$${c.total.toFixed(2)}</h5>
             </div>
           </div>
         `;
       });
     }
 
-    // --- VENDEDORES (ADMIN) ---
+    // --- VENDEDORES Y SEGUIMIENTO (ADMIN) ---
+    function guardarVendedor() {
+      const editUser = document.getElementById('vendUserEdit').value;
+      const u = document.getElementById('vendUser').value.trim().toLowerCase();
+      const n = document.getElementById('vendNombre').value.trim();
+      const p = document.getElementById('vendPass').value.trim();
+      const r = document.getElementById('vendRol').value;
+
+      if (!u || !n || !p) return alert('Complete todos los campos del vendedor.');
+
+      let usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
+
+      if (editUser) {
+        const idx = usuarios.findIndex(x => x.user === editUser);
+        if (idx >= 0) usuarios[idx] = { ...usuarios[idx], user: u, nombre: n, pass: p, rol: r };
+      } else {
+        if (usuarios.some(x => x.user === u)) return alert('El nombre de usuario ya existe.');
+        usuarios.push({ user: u, pass: p, nombre: n, rol: r, comision: 5, repartidor: 8 });
+      }
+
+      localStorage.setItem(KEY_USUARIOS, JSON.stringify(usuarios));
+      document.getElementById('vendUserEdit').value = '';
+      document.getElementById('vendUser').value = '';
+      document.getElementById('vendNombre').value = '';
+      document.getElementById('vendPass').value = '';
+
+      renderizarTablaVendedores();
+      cargarVendedoresEnSeguimiento();
+      alert('Vendedor guardado con éxito.');
+    }
+
     function renderizarTablaVendedores() {
       const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
       const tbody = document.getElementById('tablaVendedoresBody');
@@ -880,6 +1080,7 @@
             <td>${u.nombre}</td>
             <td><span class="badge ${u.rol === 'admin' ? 'badge-admin' : 'badge-vendedor'}">${u.rol}</span></td>
             <td>
+              <button class="btn btn-sm btn-outline-primary me-1" onclick="editarVendedor('${u.user}')"><i class="fa-solid fa-pen"></i></button>
               <button class="btn btn-sm btn-outline-danger" onclick="eliminarVendedor('${u.user}')"><i class="fa-solid fa-trash"></i></button>
             </td>
           </tr>
@@ -887,35 +1088,98 @@
       });
     }
 
-    function guardarVendedor() {
-      const user = document.getElementById('vendUser').value.trim().toLowerCase();
-      const nombre = document.getElementById('vendNombre').value.trim();
-      const pass = document.getElementById('vendPass').value.trim();
-      const rol = document.getElementById('vendRol').value;
-
-      if (!user || !nombre || !pass) return alert('Complete todos los campos del vendedor');
-
-      let usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
-      if (usuarios.some(u => u.user.toLowerCase() === user)) return alert('El usuario ya existe');
-
-      usuarios.push({ user, pass, nombre, rol, comision: 5, repartidor: 8 });
-      localStorage.setItem(KEY_USUARIOS, JSON.stringify(usuarios));
-
-      document.getElementById('vendUser').value = '';
-      document.getElementById('vendNombre').value = '';
-      document.getElementById('vendPass').value = '';
-
-      renderizarTablaVendedores();
-      alert('Vendedor registrado exitosamente.');
+    function editarVendedor(u) {
+      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
+      const user = usuarios.find(x => x.user === u);
+      if (user) {
+        document.getElementById('vendUserEdit').value = user.user;
+        document.getElementById('vendUser').value = user.user;
+        document.getElementById('vendNombre').value = user.nombre;
+        document.getElementById('vendPass').value = user.pass;
+        document.getElementById('vendRol').value = user.rol;
+      }
     }
 
-    function eliminarVendedor(user) {
-      if (confirm(`¿Desea eliminar el usuario ${user}?`)) {
+    function eliminarVendedor(u) {
+      if (confirm(`¿Desea eliminar el vendedor ${u}?`)) {
         let usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
-        usuarios = usuarios.filter(u => u.user !== user);
+        usuarios = usuarios.filter(x => x.user !== u);
         localStorage.setItem(KEY_USUARIOS, JSON.stringify(usuarios));
         renderizarTablaVendedores();
+        cargarVendedoresEnSeguimiento();
       }
+    }
+
+    function cargarVendedoresEnSeguimiento() {
+      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
+      const sel = document.getElementById('selectSeguimientoVendedor');
+      if (!sel) return;
+      sel.innerHTML = '';
+
+      usuarios.filter(u => u.rol === 'vendedor').forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.user;
+        opt.text = `${u.nombre} (@${u.user})`;
+        sel.appendChild(opt);
+      });
+
+      renderizarSeguimientoVendedor();
+    }
+
+    function renderizarSeguimientoVendedor() {
+      const selUser = document.getElementById('selectSeguimientoVendedor').value;
+      const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
+      const pedidosVendedor = pedidos.filter(p => p.vendedorUser === selUser);
+
+      const totalMonto = pedidosVendedor.reduce((a, b) => a + b.total, 0);
+
+      document.getElementById('segCantPedidos').innerText = pedidosVendedor.length;
+      document.getElementById('segMontoActivo').innerText = `$${totalMonto.toFixed(2)}`;
+
+      const cont = document.getElementById('segContenedorPedidosActivos');
+      cont.innerHTML = '';
+
+      if (pedidosVendedor.length === 0) {
+        cont.innerHTML = '<p class="text-muted py-2">Este vendedor no posee pedidos activos en el día.</p>';
+        return;
+      }
+
+      pedidosVendedor.forEach(p => {
+        cont.innerHTML += `
+          <div class="card mb-2 p-2 border-start border-3 border-info">
+            <div class="d-flex justify-content-between">
+              <strong>${p.cliente.nombre}</strong>
+              <span class="text-primary font-weight-bold">$${p.total.toFixed(2)}</span>
+            </div>
+            <small class="text-muted">${p.items.length} productos | ${p.fecha}</small>
+          </div>
+        `;
+      });
+    }
+
+    // FUNCIONES DE EXPORTACION ADMIN DESDE SEGUIMIENTO
+    function exportarBoletasAdmin() {
+      const selUser = document.getElementById('selectSeguimientoVendedor').value;
+      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
+      const v = usuarios.find(u => u.user === selUser);
+
+      const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
+      const misPedidos = pedidos.filter(p => p.vendedorUser === selUser);
+
+      if (misPedidos.length === 0) return alert("El vendedor no posee pedidos activos.");
+      generarPDFBoletas(misPedidos, v ? v.nombre : selUser);
+    }
+
+    function exportarConsolidadoAdmin() {
+      const selUser = document.getElementById('selectSeguimientoVendedor').value;
+      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
+      const v = usuarios.find(u => u.user === selUser);
+
+      const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
+      const misPedidos = pedidos.filter(p => p.vendedorUser === selUser);
+
+      if (misPedidos.length === 0) return alert("El vendedor no posee pedidos activos.");
+      generarPDFConsolidado(misPedidos, v ? v.nombre : selUser);
     }
   </script>
 </body>
