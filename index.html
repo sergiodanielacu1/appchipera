@@ -21,18 +21,18 @@
     const { useState, useEffect } = React;
 
     const usuariosIniciales = [
-      { id: 100, usuario: 'sergio', clave: 'cero', nombre: 'Sergio (Admin General)', esAdmin: true },
-      { id: 101, usuario: 'daniel', clave: '00000', nombre: 'Daniel (Admin)', esAdmin: true },
-      { id: 1, usuario: 'emilce', clave: '0100', nombre: 'Emilce', esAdmin: false },
-      { id: 2, usuario: 'kevin', clave: '0200', nombre: 'Kevin', esAdmin: false },
-      { id: 3, usuario: 'ramona', clave: '0300', nombre: 'Ramona', esAdmin: false }
+      { id: 100, usuario: 'sergio', clave: 'cero', nombre: 'Sergio (Admin General)', esAdmin: true, comisionVendedor: 0, comisionRepartidor: 0 },
+      { id: 101, usuario: 'daniel', clave: '00000', nombre: 'Daniel (Admin)', esAdmin: true, comisionVendedor: 0, comisionRepartidor: 0 },
+      { id: 1, usuario: 'emilce', clave: '0100', nombre: 'Emilce', esAdmin: false, comisionVendedor: 5, comisionRepartidor: 9 },
+      { id: 2, usuario: 'kevin', clave: '0200', nombre: 'Kevin', esAdmin: false, comisionVendedor: 5, comisionRepartidor: 8 },
+      { id: 3, usuario: 'ramona', clave: '0300', nombre: 'Ramona', esAdmin: false, comisionVendedor: 5, comisionRepartidor: 9 }
     ];
 
     const catalogoInicial = [
-      { id: 1, nombre: 'Tira de pilas Duracell', precio: 1500, disponible: true },
-      { id: 2, nombre: 'Fideos Tirabuzón 500g', precio: 850, disponible: true },
-      { id: 3, nombre: 'Aceite de Girasol 1L', precio: 2200, disponible: true },
-      { id: 4, nombre: 'Jabón en polvo 800g', precio: 1900, disponible: false }
+      { id: 1, nombre: 'Tira de pilas Duracell', costo: 1200, margen: 25, precio: 1500, disponible: true },
+      { id: 2, nombre: 'Fideos Tirabuzón 500g', costo: 680, margen: 25, precio: 850, disponible: true },
+      { id: 3, nombre: 'Aceite de Girasol 1L', costo: 1760, margen: 25, precio: 2200, disponible: true },
+      { id: 4, nombre: 'Jabón en polvo 800g', costo: 1520, margen: 25, precio: 1900, disponible: false }
     ];
 
     const cargarMemoriaPersistente = (clave, valorDefecto) => {
@@ -40,7 +40,7 @@
         const guardado = localStorage.getItem(clave);
         if (guardado !== null && guardado !== undefined) {
           const parsed = JSON.parse(guardado);
-          if (Array.isArray(parsed)) return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
       } catch (e) {
         console.error("Error cargando " + clave, e);
@@ -49,24 +49,22 @@
     };
 
     function App() {
-      // Estado Persistente de la Memoria
-      const [vendedores, setVendedores] = useState(() => cargarMemoriaPersistente('app_vendedores_persistent', usuariosIniciales));
-      const [catalogo, setCatalogo] = useState(() => cargarMemoriaPersistente('app_catalogo_persistent', catalogoInicial));
-      const [clientes, setClientes] = useState(() => cargarMemoriaPersistente('app_clientes_persistent', []));
-      const [pedidos, setPedidos] = useState(() => cargarMemoriaPersistente('app_pedidos_persistent', []));
-      const [historialDias, setHistorialDias] = useState(() => cargarMemoriaPersistente('app_historial_persistent', []));
+      // Estado Persistente
+      const [vendedores, setVendedores] = useState(() => cargarMemoriaPersistente('app_vendedores_v2', usuariosIniciales));
+      const [catalogo, setCatalogo] = useState(() => cargarMemoriaPersistente('app_catalogo_v2', catalogoInicial));
+      const [clientes, setClientes] = useState(() => cargarMemoriaPersistente('app_clientes_v2', []));
+      const [pedidos, setPedidos] = useState(() => cargarMemoriaPersistente('app_pedidos_v2', []));
+      const [historialDias, setHistorialDias] = useState(() => cargarMemoriaPersistente('app_historial_v2', []));
 
       const [usuarioActual, setUsuarioActual] = useState(() => {
         try {
-          const g = localStorage.getItem('app_sesion_activa');
+          const g = localStorage.getItem('app_sesion_activa_v2');
           return g ? JSON.parse(g) : null;
         } catch (e) { return null; }
       });
 
-      // Vistas e Interfaz
-      const [vista, setVista] = useState('clientes'); // 'clientes', 'pedidos', 'historial', 'vendedores', 'catalogo', 'reportes', 'respaldo'
-      
-      // Filtro de Vista Admin
+      // Vistas
+      const [vista, setVista] = useState('clientes');
       const [vendedorFiltroId, setVendedorFiltroId] = useState('todos');
 
       // Login
@@ -78,10 +76,14 @@
       const [nuevoUser, setNuevoUser] = useState('');
       const [nuevaClave, setNuevaClave] = useState('');
       const [nuevoNombre, setNuevoNombre] = useState('');
+      const [comisionVend, setComisionVend] = useState('5');
+      const [comisionRep, setComisionRep] = useState('9');
+      const [vendedorEditandoId, setVendedorEditandoId] = useState(null);
 
       // Form Catálogo (Admin)
       const [artNombre, setArtNombre] = useState('');
-      const [artPrecio, setArtPrecio] = useState('');
+      const [artCosto, setArtCosto] = useState('');
+      const [artMargen, setArtMargen] = useState('25');
 
       // Form Cliente
       const [nombreCli, setNombreCli] = useState('');
@@ -96,20 +98,21 @@
       const [prodDesc, setProdDesc] = useState('');
       const [prodCant, setProdCant] = useState('1');
       const [prodPrecio, setProdPrecio] = useState('');
+      const [prodCostoUnit, setProdCostoUnit] = useState(0);
       const [sugerencias, setSugerencias] = useState([]);
 
-      // Guardar inmediatamente cambios en memoria local
-      useEffect(() => { localStorage.setItem('app_vendedores_persistent', JSON.stringify(vendedores)); }, [vendedores]);
-      useEffect(() => { localStorage.setItem('app_catalogo_persistent', JSON.stringify(catalogo)); }, [catalogo]);
-      useEffect(() => { localStorage.setItem('app_clientes_persistent', JSON.stringify(clientes)); }, [clientes]);
-      useEffect(() => { localStorage.setItem('app_pedidos_persistent', JSON.stringify(pedidos)); }, [pedidos]);
-      useEffect(() => { localStorage.setItem('app_historial_persistent', JSON.stringify(historialDias)); }, [historialDias]);
+      // Persistencia Automática
+      useEffect(() => { localStorage.setItem('app_vendedores_v2', JSON.stringify(vendedores)); }, [vendedores]);
+      useEffect(() => { localStorage.setItem('app_catalogo_v2', JSON.stringify(catalogo)); }, [catalogo]);
+      useEffect(() => { localStorage.setItem('app_clientes_v2', JSON.stringify(clientes)); }, [clientes]);
+      useEffect(() => { localStorage.setItem('app_pedidos_v2', JSON.stringify(pedidos)); }, [pedidos]);
+      useEffect(() => { localStorage.setItem('app_historial_v2', JSON.stringify(historialDias)); }, [historialDias]);
       useEffect(() => {
-        if (usuarioActual) localStorage.setItem('app_sesion_activa', JSON.stringify(usuarioActual));
-        else localStorage.removeItem('app_sesion_activa');
+        if (usuarioActual) localStorage.setItem('app_sesion_activa_v2', JSON.stringify(usuarioActual));
+        else localStorage.removeItem('app_sesion_activa_v2');
       }, [usuarioActual]);
 
-      // Autocompletado inteligente de productos
+      // Autocompletado inteligente
       const handleInputProdChange = (e) => {
         const val = e.target.value;
         setProdDesc(val);
@@ -125,11 +128,12 @@
 
       const seleccionarSugerencia = (art) => {
         if (!art.disponible) {
-          alert('Este artículo no está disponible actualmente (Sin Stock).');
+          alert('Este artículo está agotado (Sin Stock).');
           return;
         }
         setProdDesc(art.nombre);
         setProdPrecio(art.precio);
+        setProdCostoUnit(art.costo || 0);
         setSugerencias([]);
       };
 
@@ -147,22 +151,48 @@
         }
       };
 
-      const crearVendedor = (e) => {
+      const guardarVendedor = (e) => {
         e.preventDefault();
         if (!nuevoUser || !nuevaClave || !nuevoNombre) return;
-        if (vendedores.some(v => v.usuario.toLowerCase() === nuevoUser.trim().toLowerCase())) {
-          return alert('Ese nombre de usuario ya existe');
+
+        if (vendedorEditandoId) {
+          setVendedores(vendedores.map(v => v.id === vendedorEditandoId ? {
+            ...v,
+            nombre: nuevoNombre.trim(),
+            usuario: nuevoUser.trim().toLowerCase(),
+            clave: nuevaClave.trim(),
+            comisionVendedor: Number(comisionVend),
+            comisionRepartidor: Number(comisionRep)
+          } : v));
+          setVendedorEditandoId(null);
+          alert('Vendedor actualizado');
+        } else {
+          if (vendedores.some(v => v.usuario.toLowerCase() === nuevoUser.trim().toLowerCase())) {
+            return alert('Ese usuario ya existe');
+          }
+          const nuevo = {
+            id: Date.now(),
+            usuario: nuevoUser.trim().toLowerCase(),
+            clave: nuevaClave.trim(),
+            nombre: nuevoNombre.trim(),
+            esAdmin: false,
+            comisionVendedor: Number(comisionVend),
+            comisionRepartidor: Number(comisionRep)
+          };
+          setVendedores([...vendedores, nuevo]);
+          alert('Vendedor creado');
         }
-        const nuevo = {
-          id: Date.now(),
-          usuario: nuevoUser.trim().toLowerCase(),
-          clave: nuevaClave.trim(),
-          nombre: nuevoNombre.trim(),
-          esAdmin: false
-        };
-        setVendedores([...vendedores, nuevo]);
         setNuevoUser(''); setNuevaClave(''); setNuevoNombre('');
-        alert('Vendedor creado con éxito');
+        setComisionVend('5'); setComisionRep('9');
+      };
+
+      const editarVendedor = (v) => {
+        setVendedorEditandoId(v.id);
+        setNuevoNombre(v.nombre);
+        setNuevoUser(v.usuario);
+        setNuevaClave(v.clave);
+        setComisionVend(String(v.comisionVendedor || 5));
+        setComisionRep(String(v.comisionRepartidor || 9));
       };
 
       const eliminarVendedor = (id) => {
@@ -173,15 +203,22 @@
 
       const crearArticuloCatalogo = (e) => {
         e.preventDefault();
-        if (!artNombre || !artPrecio) return;
+        if (!artNombre || !artCosto || !artMargen) return;
+        
+        const costoNum = Number(artCosto);
+        const margenNum = Number(artMargen);
+        const precioCalculado = Math.round(costoNum * (1 + (margenNum / 100)));
+
         const nuevo = {
           id: Date.now(),
           nombre: artNombre.trim(),
-          precio: Number(artPrecio),
+          costo: costoNum,
+          margen: margenNum,
+          precio: precioCalculado,
           disponible: true
         };
         setCatalogo([...catalogo, nuevo]);
-        setArtNombre(''); setArtPrecio('');
+        setArtNombre(''); setArtCosto(''); setArtMargen('25');
       };
 
       const toggleDisponibilidadArticulo = (id) => {
@@ -198,10 +235,9 @@
         e.preventDefault();
         if (!nombreCli || !dirCli || !locCli) return;
         const nuevo = { id: Date.now(), nombre: nombreCli.trim(), direccion: dirCli.trim(), localidad: locCli.trim(), vendedorId: usuarioActual.id };
-        const listaActualizada = [...clientes, nuevo];
-        setClientes(listaActualizada);
+        setClientes([...clientes, nuevo]);
         setNombreCli(''); setDirCli(''); setLocCli('');
-        alert('Cliente guardado en la memoria permanente');
+        alert('Cliente guardado');
       };
 
       const eliminarCliente = (id) => {
@@ -218,10 +254,12 @@
           descripcion: prodDesc.trim(),
           cantidad: Number(prodCant),
           precio: Number(prodPrecio),
-          subtotal: Number(prodCant) * Number(prodPrecio)
+          costoUnitario: Number(prodCostoUnit) || 0,
+          subtotal: Number(prodCant) * Number(prodPrecio),
+          costoTotal: Number(prodCant) * (Number(prodCostoUnit) || 0)
         };
         setItemsPedido([...itemsPedido, item]);
-        setProdDesc(''); setProdCant('1'); setProdPrecio('');
+        setProdDesc(''); setProdCant('1'); setProdPrecio(''); setProdCostoUnit(0);
         setSugerencias([]);
       };
 
@@ -290,150 +328,94 @@
 
           setHistorialDias([cierre, ...historialDias]);
           setPedidos(pedidos.filter(p => p.vendedorId !== usuarioActual.id));
-          alert('¡Cierre de día completado con éxito!');
+          alert('¡Cierre de día completado!');
           setVista('historial');
         }
       };
 
-      // Cálculo de Rendimiento Mensual por Vendedor
-      const obtenerEstadisticasMensuales = () => {
-        // Combinar pedidos activos y cierres de historial
-        const todasLasVentas = [];
-        
-        historialDias.forEach(c => {
-          c.pedidos.forEach(p => {
-            todasLasVentas.push({ ...p, fechaIso: c.fechaIso || p.fechaIso });
-          });
-        });
-        pedidos.forEach(p => todasLasVentas.push(p));
-
-        const ventasPorVendedor = {};
-
-        vendedores.filter(v => !v.esAdmin).forEach(v => {
-          ventasPorVendedor[v.id] = { nombre: v.nombre, meses: {}, mejorMes: '-', mejorMonto: 0 };
-        });
-
-        todasLasVentas.forEach(v => {
-          if (ventasPorVendedor[v.vendedorId]) {
-            const fecha = new Date(v.fechaIso || Date.now());
-            const claveMes = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
-            if (!ventasPorVendedor[v.vendedorId].meses[claveMes]) {
-              ventasPorVendedor[v.vendedorId].meses[claveMes] = 0;
-            }
-            ventasPorVendedor[v.vendedorId].meses[claveMes] += v.total;
-          }
-        });
-
-        // Calcular el mejor mes
-        Object.keys(ventasPorVendedor).forEach(vId => {
-          const vData = ventasPorVendedor[vId];
-          let maxTotal = 0;
-          let mejorM = '-';
-          Object.keys(vData.meses).forEach(m => {
-            if (vData.meses[m] > maxTotal) {
-              maxTotal = vData.meses[m];
-              mejorM = m;
-            }
-          });
-          vData.mejorMes = mejorM;
-          vData.mejorMonto = maxTotal;
-        });
-
-        return ventasPorVendedor;
-      };
-
-      // PDF Generator
-      const generarPDFOptimizandoHoja = (listaPedidos = null) => {
-        const pProcesar = listaPedidos || pedidos.filter(p => usuarioActual.esAdmin ? (vendedorFiltroId === 'todos' ? true : p.vendedorId === Number(vendedorFiltroId)) : p.vendedorId === usuarioActual.id);
-        if (pProcesar.length === 0) return alert('No hay pedidos para generar PDF');
+      // PDF Ganancia Neta y Consolidado Financiero (Solo Admins)
+      const generarPDFGananciaNeta = () => {
+        const pProcesar = pedidos.filter(p => vendedorFiltroId === 'todos' ? true : p.vendedorId === Number(vendedorFiltroId));
+        if (pProcesar.length === 0) return alert('No hay ventas registradas para generar el reporte financiero.');
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        let currentY = 15;
 
-        pProcesar.forEach((p, index) => {
-          const altura = 45 + (p.items.length * 6);
-          if (currentY + altura > 270 && index > 0) { doc.addPage(); currentY = 15; }
+        doc.setFontSize(14); doc.setFont(undefined, 'bold');
+        doc.text('REPORTE FINANCIERO Y GANANCIA NETA', 15, 18);
+        doc.setFontSize(9); doc.setFont(undefined, 'normal');
+        doc.text(`Fecha de Emisión: ${new Date().toLocaleString('es-AR')}`, 15, 24);
+        doc.line(15, 27, 195, 27);
 
-          doc.setFontSize(13); doc.setFont(undefined, 'bold');
-          doc.text(`COMPROBANTE DE PEDIDO ${p.nroBoleta}`, 15, currentY);
-          doc.setFontSize(9); doc.setFont(undefined, 'normal');
-          doc.text(`Fecha: ${p.fecha} | Vendedor: ${p.vendedorNombre}`, 15, currentY + 5);
-          doc.line(15, currentY + 8, 195, currentY + 8);
-
-          doc.text(`Cliente: ${p.cliente.nombre} | Direc: ${p.cliente.direccion} (${p.cliente.localidad})`, 15, currentY + 14);
-          doc.line(15, currentY + 18, 195, currentY + 18);
-
-          let y = currentY + 24;
-          doc.setFont(undefined, 'bold');
-          doc.text('Cant.', 15, y); doc.text('Producto', 35, y); doc.text('P. Unit', 140, y); doc.text('Subtotal', 170, y);
-          doc.setFont(undefined, 'normal');
-
-          y += 5;
-          p.items.forEach(it => {
-            doc.text(String(it.cantidad), 15, y);
-            doc.text(it.descripcion, 35, y);
-            doc.text(`$${it.precio}`, 140, y);
-            doc.text(`$${it.subtotal}`, 170, y);
-            y += 6;
-          });
-
-          doc.line(15, y, 195, y);
-          y += 6;
-          doc.setFont(undefined, 'bold');
-          doc.text(`TOTAL PEDIDO: $${p.total}`, 130, y);
-
-          currentY = y + 12;
-        });
-
-        doc.save(`Pedidos_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
-      };
-
-      const generarPDFConsolidado = (listaPedidos = null) => {
-        const pProcesar = listaPedidos || pedidos.filter(p => usuarioActual.esAdmin ? (vendedorFiltroId === 'todos' ? true : p.vendedorId === Number(vendedorFiltroId)) : p.vendedorId === usuarioActual.id);
-        if (pProcesar.length === 0) return alert('No hay ventas para consolidar');
-
-        const consolidado = {};
-        let totalGeneral = 0;
+        // Agrupar por Vendedor
+        const resumenVendedores = {};
+        let ventaTotalGeneral = 0;
+        let costoTotalGeneral = 0;
+        let comisionVendTotalGeneral = 0;
+        let comisionRepTotalGeneral = 0;
 
         pProcesar.forEach(p => {
+          const vObj = vendedores.find(v => v.id === p.vendedorId) || { comisionVendedor: 5, comisionRepartidor: 9 };
+          if (!resumenVendedores[p.vendedorId]) {
+            resumenVendedores[p.vendedorId] = {
+              nombre: p.vendedorNombre,
+              comisionVendPct: vObj.comisionVendedor || 5,
+              comisionRepPct: vObj.comisionRepartidor || 9,
+              ventaTotal: 0,
+              costoTotal: 0
+            };
+          }
+
           p.items.forEach(it => {
-            const k = it.descripcion.trim().toLowerCase();
-            if (!consolidado[k]) consolidado[k] = { desc: it.descripcion, cant: 0, prec: it.precio, subt: 0 };
-            consolidado[k].cant += it.cantidad;
-            consolidado[k].subt += it.subtotal;
-            totalGeneral += it.subtotal;
+            resumenVendedores[p.vendedorId].ventaTotal += it.subtotal;
+            resumenVendedores[p.vendedorId].costoTotal += (it.costoTotal || 0);
           });
         });
 
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.setFontSize(14); doc.setFont(undefined, 'bold');
-        doc.text('CONSOLIDADO GENERAL DE MERCADERÍA', 15, 20);
-        doc.setFontSize(10); doc.setFont(undefined, 'normal');
-        doc.text(`Generado: ${new Date().toLocaleString('es-AR')}`, 15, 27);
-        doc.line(15, 31, 195, 31);
+        let y = 35;
+        doc.setFontSize(11); doc.setFont(undefined, 'bold');
+        doc.text('DETALLE POR VENDEDOR:', 15, y);
+        y += 7;
 
-        let y = 40;
-        doc.setFont(undefined, 'bold');
-        doc.text('Producto', 15, y); doc.text('Cant Total', 100, y); doc.text('P. Unit', 135, y); doc.text('Subtotal', 170, y);
-        doc.setFont(undefined, 'normal');
+        Object.values(resumenVendedores).forEach(v => {
+          const comisionVendMonto = v.ventaTotal * (v.comisionVendPct / 100);
+          const comisionRepMonto = v.ventaTotal * (v.comisionRepPct / 100);
+          const gananciaNetaVendedor = v.ventaTotal - v.costoTotal - comisionVendMonto - comisionRepMonto;
 
-        y += 6;
-        Object.values(consolidado).forEach(art => {
-          doc.text(art.desc, 15, y);
-          doc.text(String(art.cant), 100, y);
-          doc.text(`$${art.prec}`, 135, y);
-          doc.text(`$${art.subt}`, 170, y);
-          y += 7;
+          ventaTotalGeneral += v.ventaTotal;
+          costoTotalGeneral += v.costoTotal;
+          comisionVendTotalGeneral += comisionVendMonto;
+          comisionRepTotalGeneral += comisionRepMonto;
+
+          doc.setFontSize(10); doc.setFont(undefined, 'bold');
+          doc.text(`• Vendedor: ${v.nombre}`, 15, y);
+          y += 5;
+          doc.setFontSize(9); doc.setFont(undefined, 'normal');
+          doc.text(`  Venta Bruta Total: $${v.ventaTotal}`, 20, y); y += 5;
+          doc.text(`  (-) Costo de Mercadería: -$${v.costoTotal}`, 20, y); y += 5;
+          doc.text(`  (-) Comisión Vendedor (${v.comisionVendPct}%): -$${comisionVendMonto.toFixed(2)}`, 20, y); y += 5;
+          doc.text(`  (-) Comisión Repartidor (${v.comisionRepPct}%): -$${comisionRepMonto.toFixed(2)}`, 20, y); y += 5;
+          doc.setFont(undefined, 'bold');
+          doc.text(`  (=) GANANCIA NETA: $${gananciaNetaVendedor.toFixed(2)}`, 20, y);
+          y += 8;
+          doc.line(20, y - 3, 190, y - 3);
         });
 
-        doc.line(15, y, 195, y);
-        y += 10;
-        doc.setFont(undefined, 'bold');
-        doc.text(`VALORIZADO TOTAL: $${totalGeneral}`, 110, y);
+        const gananciaNetaTotalGeneral = ventaTotalGeneral - costoTotalGeneral - comisionVendTotalGeneral - comisionRepTotalGeneral;
 
-        doc.save(`Consolidado_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+        y += 5;
+        doc.setFontSize(11); doc.setFont(undefined, 'bold');
+        doc.text('CONSOLIDADO GENERAL DE LA EMPRESA:', 15, y); y += 7;
+        doc.setFontSize(9); doc.setFont(undefined, 'normal');
+        doc.text(`Venta Total Bruta: $${ventaTotalGeneral}`, 15, y); y += 5;
+        doc.text(`(-) Costo Total Mercadería: -$${costoTotalGeneral}`, 15, y); y += 5;
+        doc.text(`(-) Total Comisiones Vendedores: -$${comisionVendTotalGeneral.toFixed(2)}`, 15, y); y += 5;
+        doc.text(`(-) Total Comisiones Repartidores: -$${comisionRepTotalGeneral.toFixed(2)}`, 15, y); y += 7;
+        
+        doc.setFontSize(12); doc.setFont(undefined, 'bold');
+        doc.text(`GANANCIA NETA FINAL: $${gananciaNetaTotalGeneral.toFixed(2)}`, 15, y);
+
+        doc.save(`Ganancia_Neta_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
       };
 
       const exportarCopia = () => {
@@ -455,7 +437,7 @@
             if (res.catalogo) setCatalogo(res.catalogo);
             if (res.pedidos) setPedidos(res.pedidos);
             if (res.historialDias) setHistorialDias(res.historialDias);
-            alert('¡Copia de seguridad restaurada!');
+            alert('¡Copia de seguridad restaurada exitosamente!');
           } catch (err) { alert('Error al procesar el archivo'); }
         };
         if (event.target.files[0]) reader.readAsText(event.target.files[0]);
@@ -479,7 +461,7 @@
         );
       }
 
-      // FORMULARIO DE TOMAR / EDITAR PEDIDO
+      // FORMULARIO TOMAR PEDIDO
       if (clienteSeleccionado) {
         const totalActual = itemsPedido.reduce((acc, i) => acc + i.subtotal, 0);
         return (
@@ -496,7 +478,6 @@
               <div className="relative">
                 <input type="text" placeholder="Escribe el producto (ej: tira...)" value={prodDesc} onChange={handleInputProdChange} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
                 
-                {/* Desplegable de Autocompletado */}
                 {sugerencias.length > 0 && (
                   <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
                     {sugerencias.map(art => (
@@ -544,7 +525,6 @@
         );
       }
 
-      // Filtrado para Vendedor / Admin
       const pedidosFiltrados = pedidos.filter(p => {
         if (!usuarioActual.esAdmin) return p.vendedorId === usuarioActual.id;
         if (vendedorFiltroId === 'todos') return true;
@@ -563,11 +543,8 @@
         c.localidad.toLowerCase().includes(busqueda.toLowerCase())
       );
 
-      const statsMensuales = obtenerEstadisticasMensuales();
-
       return (
         <div className="max-w-md mx-auto p-4 space-y-4">
-          {/* Cabecera */}
           <div className="flex justify-between items-center border-b border-slate-800 pb-3">
             <div>
               <h2 className="font-bold text-white">{usuarioActual.nombre}</h2>
@@ -576,20 +553,19 @@
             <button onClick={() => setUsuarioActual(null)} className="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Salir</button>
           </div>
 
-          {/* Menú de Navegación */}
           <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs overflow-x-auto gap-1">
-            <button onClick={() => setVista('clientes')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'clientes' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Clientes ({clientes.length})</button>
-            <button onClick={() => setVista('pedidos')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'pedidos' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Día ({pedidosFiltrados.length})</button>
-            <button onClick={() => setVista('historial')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'historial' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Historial</button>
+            <button onClick={() => setVista('clientes')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'clientes' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Clientes ({clientes.length})</button>
+            <button onClick={() => setVista('pedidos')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'pedidos' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Día ({pedidosFiltrados.length})</button>
+            <button onClick={() => setVista('historial')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'historial' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Historial</button>
             
             {usuarioActual.esAdmin && (
               <>
-                <button onClick={() => setVista('vendedores')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'vendedores' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Vendedores</button>
-                <button onClick={() => setVista('catalogo')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'catalogo' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Artículos</button>
-                <button onClick={() => setVista('reportes')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'reportes' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Meses📊</button>
+                <button onClick={() => setVista('vendedores')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'vendedores' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Vendedores</button>
+                <button onClick={() => setVista('catalogo')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'catalogo' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Artículos</button>
+                <button onClick={() => setVista('finanzas')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'finanzas' ? 'bg-emerald-600 text-white' : 'text-emerald-400'}`}>Ganancias 💵</button>
               </>
             )}
-            <button onClick={() => setVista('respaldo')} className={`px-2 py-2 rounded-lg font-bold transition-colors ${vista === 'respaldo' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>⚙️</button>
+            <button onClick={() => setVista('respaldo')} className={`px-2 py-2 rounded-lg font-bold ${vista === 'respaldo' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>⚙️</button>
           </div>
 
           {/* VISTA CLIENTES */}
@@ -644,22 +620,11 @@
                 </div>
               )}
 
-              <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
-                <h3 className="font-bold text-amber-400 text-xs">🏁 Acciones del Recorrido</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => generarPDFOptimizandoHoja()} className="bg-indigo-600 hover:bg-indigo-500 text-[11px] font-bold py-2 rounded-lg text-white">
-                    📄 Exportar PDF
-                  </button>
-                  <button onClick={() => generarPDFConsolidado()} className="bg-indigo-600 hover:bg-indigo-500 text-[11px] font-bold py-2 rounded-lg text-white">
-                    📊 Consolidado ($)
-                  </button>
-                </div>
-                {!usuarioActual.esAdmin && (
-                  <button onClick={realizarCierreDeDia} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-2.5 rounded-lg text-white">
-                    🔒 Cierre de Día / Iniciar Nuevo Recorrido
-                  </button>
-                )}
-              </div>
+              {!usuarioActual.esAdmin && (
+                <button onClick={realizarCierreDeDia} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-2.5 rounded-lg text-white">
+                  🔒 Cierre de Día / Iniciar Nuevo Recorrido
+                </button>
+              )}
 
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-slate-400">Pedidos del Recorrido:</h4>
@@ -700,7 +665,7 @@
             </div>
           )}
 
-          {/* VISTA HISTORIAL DE CIERRES */}
+          {/* VISTA HISTORIAL */}
           {vista === 'historial' && (
             <div className="space-y-4">
               <h3 className="font-bold text-indigo-400 text-sm">Historial de Recorridos Cerrados</h3>
@@ -708,22 +673,13 @@
                 <div className="text-center text-xs text-slate-500 py-6">No hay cierres registrados.</div>
               ) : (
                 cierresFiltrados.map(c => (
-                  <div key={c.id} className="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-2.5">
-                    <div className="flex justify-between items-center border-b border-slate-700/60 pb-2">
+                  <div key={c.id} className="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-2">
+                    <div className="flex justify-between items-center">
                       <div>
                         <div className="font-bold text-xs text-white">Cierre: {c.fechaCierre}</div>
                         <div className="text-[10px] text-slate-400">Vendedor: {c.vendedorNombre} ({c.pedidos.length} Pedidos)</div>
                       </div>
                       <span className="text-sm font-bold text-emerald-400">${c.totalVendido}</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <button onClick={() => generarPDFOptimizandoHoja(c.pedidos)} className="bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold py-1.5 rounded-lg">
-                        📄 PDF Pedidos
-                      </button>
-                      <button onClick={() => generarPDFConsolidado(c.pedidos)} className="bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold py-1.5 rounded-lg">
-                        📊 PDF Consolidado
-                      </button>
                     </div>
                   </div>
                 ))
@@ -731,17 +687,34 @@
             </div>
           )}
 
-          {/* VISTA GESTIÓN DE VENDEDORES (ADMIN) */}
+          {/* VISTA GESTIÓN DE VENDEDORES Y COMISIONES (ADMIN) */}
           {vista === 'vendedores' && usuarioActual.esAdmin && (
             <div className="space-y-4">
-              <h3 className="font-bold text-indigo-400 text-sm">Gestión de Vendedores</h3>
-              <form onSubmit={crearVendedor} className="bg-slate-800 p-3.5 rounded-xl space-y-2 border border-slate-700">
-                <input type="text" placeholder="Nombre completo (ej: Juan Pérez)" value={nuevoNombre} onChange={e=>setNuevoNombre(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+              <h3 className="font-bold text-indigo-400 text-sm">{vendedorEditandoId ? 'Editar Vendedor' : 'Alta de Vendedor'}</h3>
+              <form onSubmit={guardarVendedor} className="bg-slate-800 p-3.5 rounded-xl space-y-2 border border-slate-700">
+                <input type="text" placeholder="Nombre Completo" value={nuevoNombre} onChange={e=>setNuevoNombre(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
                 <div className="flex gap-2">
                   <input type="text" placeholder="Usuario" value={nuevoUser} onChange={e=>setNuevoUser(e.target.value)} autoCapitalize="none" className="w-1/2 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
                   <input type="text" placeholder="Contraseña" value={nuevaClave} onChange={e=>setNuevaClave(e.target.value)} className="w-1/2 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
                 </div>
-                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">+ Crear Nuevo Vendedor</button>
+                
+                <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/80 space-y-1.5">
+                  <div className="text-[11px] font-bold text-amber-400">Comisiones Asignadas:</div>
+                  <div className="flex gap-2">
+                    <div className="w-1/2">
+                      <label className="text-[10px] text-slate-400">Comisión Vendedor %</label>
+                      <input type="number" value={comisionVend} onChange={e=>setComisionVend(e.target.value)} className="w-full bg-slate-900 text-xs p-2 rounded-lg border border-slate-700 text-white"/>
+                    </div>
+                    <div className="w-1/2">
+                      <label className="text-[10px] text-slate-400">Comisión Repartidor %</label>
+                      <input type="number" value={comisionRep} onChange={e=>setComisionRep(e.target.value)} className="w-full bg-slate-900 text-xs p-2 rounded-lg border border-slate-700 text-white"/>
+                    </div>
+                  </div>
+                </div>
+
+                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">
+                  {vendedorEditandoId ? 'Guardar Cambios' : '+ Crear Nuevo Vendedor'}
+                </button>
               </form>
 
               <div className="space-y-2">
@@ -751,11 +724,21 @@
                     <div>
                       <div className="font-bold text-white">{v.nombre} {v.esAdmin && <span className="text-[10px] text-amber-400 font-bold">(Admin)</span>}</div>
                       <div className="text-[10px] text-slate-400">User: <strong className="text-slate-200">{v.usuario}</strong> | Clave: <strong className="text-slate-200">{v.clave}</strong></div>
+                      {!v.esAdmin && (
+                        <div className="text-[10px] text-emerald-400 mt-0.5">
+                          Vend: {v.comisionVendedor || 5}% | Rep: {v.comisionRepartidor || 9}%
+                        </div>
+                      )}
                     </div>
                     {!v.esAdmin && (
-                      <button onClick={() => eliminarVendedor(v.id)} className="bg-red-500/20 text-red-400 text-[10px] px-2.5 py-1.5 rounded-lg border border-red-500/30">
-                        Eliminar
-                      </button>
+                      <div className="flex gap-1">
+                        <button onClick={() => editarVendedor(v)} className="bg-amber-500/20 text-amber-300 text-[10px] px-2 py-1.5 rounded-lg border border-amber-500/30">
+                          Editar
+                        </button>
+                        <button onClick={() => eliminarVendedor(v.id)} className="bg-red-500/20 text-red-400 text-[10px] px-2 py-1.5 rounded-lg border border-red-500/30">
+                          Eliminar
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -763,29 +746,46 @@
             </div>
           )}
 
-          {/* VISTA CATÁLOGO Y STOCK (ADMIN) */}
+          {/* VISTA CATÁLOGO CON COSTOS Y MARGEN (ADMIN) */}
           {vista === 'catalogo' && usuarioActual.esAdmin && (
             <div className="space-y-4">
-              <h3 className="font-bold text-indigo-400 text-sm">Catálogo y Disponibilidad</h3>
+              <h3 className="font-bold text-indigo-400 text-sm">Crear Artículo con Costo y Margen</h3>
               <form onSubmit={crearArticuloCatalogo} className="bg-slate-800 p-3.5 rounded-xl space-y-2 border border-slate-700">
                 <input type="text" placeholder="Nombre del artículo (ej: Tira de Pilas)" value={artNombre} onChange={e=>setArtNombre(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                <input type="number" placeholder="Precio Base ($)" value={artPrecio} onChange={e=>setArtPrecio(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">+ Agregar Artículo al Catálogo</button>
+                <div className="flex gap-2">
+                  <div className="w-1/2">
+                    <label className="text-[10px] text-slate-400">Costo ($)</label>
+                    <input type="number" placeholder="Ej: 1200" value={artCosto} onChange={e=>setArtCosto(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+                  </div>
+                  <div className="w-1/2">
+                    <label className="text-[10px] text-slate-400">Margen %</label>
+                    <input type="number" placeholder="Ej: 25" value={artMargen} onChange={e=>setArtMargen(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+                  </div>
+                </div>
+                {artCosto && artMargen && (
+                  <div className="text-[11px] text-emerald-400 font-bold text-center bg-slate-900/50 py-1.5 rounded-lg">
+                    Precio Final de Venta: ${Math.round(Number(artCosto) * (1 + (Number(artMargen)/100)))}
+                  </div>
+                )}
+                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">+ Guardar Artículo</button>
               </form>
 
               <div className="space-y-2">
-                <h4 className="text-xs font-bold text-slate-400">Artículos Creados:</h4>
+                <h4 className="text-xs font-bold text-slate-400">Catálogo (Solo Visible por Administradores):</h4>
                 {catalogo.map(art => (
                   <div key={art.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center text-xs">
                     <div>
                       <div className="font-bold text-white">{art.nombre}</div>
-                      <div className="text-emerald-400 font-bold">${art.precio}</div>
+                      <div className="text-[10px] text-slate-400">
+                        Costo: <strong className="text-slate-200">${art.costo || 0}</strong> | Margen: <strong className="text-amber-300">+{art.margen || 25}%</strong>
+                      </div>
+                      <div className="text-emerald-400 font-bold">Precio Venta: ${art.precio}</div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => toggleDisponibilidadArticulo(art.id)} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border ${art.disponible ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
-                        {art.disponible ? 'Disponible' : 'Sin Stock'}
+                        {art.disponible ? 'Disponible' : 'Agotado'}
                       </button>
-                      <button onClick={() => eliminarArticuloCatalogo(art.id)} className="text-red-400 text-xs px-2">✕</button>
+                      <button onClick={() => eliminarArticuloCatalogo(art.id)} className="text-red-400 text-xs px-1">✕</button>
                     </div>
                   </div>
                 ))}
@@ -793,39 +793,29 @@
             </div>
           )}
 
-          {/* VISTA REPORTES MENSUALES (ADMIN) */}
-          {vista === 'reportes' && usuarioActual.esAdmin && (
+          {/* VISTA REPORTES FINANCIEROS Y PDF (ADMIN) */}
+          {vista === 'finanzas' && usuarioActual.esAdmin && (
             <div className="space-y-4">
-              <h3 className="font-bold text-indigo-400 text-sm">📊 Planilla de Ventas Mensuales</h3>
-              <p className="text-xs text-slate-400">Calculado automáticamente con las ventas acumuladas por mes.</p>
+              <h3 className="font-bold text-emerald-400 text-sm">💵 Ganancia Neta & Comisiones</h3>
+              
+              <div className="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-3">
+                <p className="text-xs text-slate-300">
+                  Genera un PDF con el cálculo exacto descontando el costo del artículo, la comisión del vendedor y la del repartidor.
+                </p>
+                
+                <div className="flex justify-between items-center bg-slate-900 p-2 rounded-lg text-xs">
+                  <span className="text-slate-400">Filtrar Vendedor:</span>
+                  <select value={vendedorFiltroId} onChange={e=>setVendedorFiltroId(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-xs text-white">
+                    <option value="todos">Todos los vendedores</option>
+                    {vendedores.filter(v => !v.esAdmin).map(v => (
+                      <option key={v.id} value={v.id}>{v.nombre}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="space-y-3">
-                {Object.keys(statsMensuales).map(vId => {
-                  const data = statsMensuales[vId];
-                  return (
-                    <div key={vId} className="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-2">
-                      <div className="flex justify-between items-center border-b border-slate-700/60 pb-2">
-                        <span className="font-bold text-xs text-white">{data.nombre}</span>
-                        <span className="text-[11px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md border border-amber-500/30 font-bold">
-                          🏆 Mejor Mes: {data.mejorMes} (${data.mejorMonto})
-                        </span>
-                      </div>
-
-                      <div className="text-xs space-y-1 pt-1">
-                        {Object.keys(data.meses).length === 0 ? (
-                          <div className="text-slate-500 text-[11px]">Sin registros de ventas todavía.</div>
-                        ) : (
-                          Object.keys(data.meses).map(m => (
-                            <div key={m} className="flex justify-between text-slate-300 text-[11px]">
-                              <span>Mes: <strong>{m}</strong></span>
-                              <span className="font-bold text-emerald-400">${data.meses[m]}</span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                <button onClick={generarPDFGananciaNeta} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-3 rounded-xl text-white shadow-lg">
+                  📄 Descargar PDF Ganancia Neta & Consolidado
+                </button>
               </div>
             </div>
           )}
@@ -833,7 +823,7 @@
           {/* VISTA RESPALDO */}
           {vista === 'respaldo' && (
             <div className="space-y-4">
-              <h3 className="font-bold text-indigo-400 text-sm">⚙️ Memoria y Respaldos</h3>
+              <h3 className="font-bold text-indigo-400 text-sm">⚙️ Respaldos de Memoria</h3>
               <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3">
                 <button onClick={exportarCopia} className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">
                   📥 Descargar Copia Completa (JSON)
