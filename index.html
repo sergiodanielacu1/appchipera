@@ -227,11 +227,22 @@
                 <p>Monto Día Activo: <strong id="segMontoActivo">$0.00</strong></p>
               </div>
             </div>
-            <div class="col-md-8">
+            <div class="col-md-8 mb-3">
               <div class="card p-3">
                 <h6><i class="fa-solid fa-boxes-packing me-1"></i>Pedidos Activos del Vendedor</h6>
                 <div id="segContenedorPedidosActivos" class="mt-2"></div>
               </div>
+            </div>
+          </div>
+
+          <!-- BOTON BALANCE SEMANAL -->
+          <div class="card p-3 mt-3 border-dark">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h5 class="mb-0 text-dark"><i class="fa-solid fa-scale-balanced me-2"></i>Reporte Financiero Semanal</h5>
+                <small class="text-muted">Genera un informe con la venta bruta, costos de productos, comisiones asignadas y ganancia neta.</small>
+              </div>
+              <button class="btn btn-success btn-lg" onclick="generarPDFBalanceSemanal()"><i class="fa-solid fa-file-pdf me-2"></i>Balance Semanal</button>
             </div>
           </div>
         </div>
@@ -253,6 +264,16 @@
                     <option value="admin">Administrador General</option>
                   </select>
                 </div>
+                <div class="row g-2 mb-3">
+                  <div class="col-6">
+                    <label class="form-label small font-weight-bold">Comisión Venta (%)</label>
+                    <input type="number" id="vendComisionVenta" class="form-control" value="5" step="0.5" min="0">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small font-weight-bold">Comisión Reparto (%)</label>
+                    <input type="number" id="vendComisionReparto" class="form-control" value="9" step="0.5" min="0">
+                  </div>
+                </div>
                 <button class="btn btn-primary w-100" onclick="guardarVendedor()"><i class="fa-solid fa-save me-1"></i>Guardar Vendedor</button>
               </div>
             </div>
@@ -262,7 +283,14 @@
                 <div class="table-responsive">
                   <table class="table table-hover align-middle">
                     <thead>
-                      <tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Acciones</th></tr>
+                      <tr>
+                        <th>Usuario</th>
+                        <th>Nombre</th>
+                        <th>Rol</th>
+                        <th>Com. Venta</th>
+                        <th>Com. Reparto</th>
+                        <th>Acciones</th>
+                      </tr>
                     </thead>
                     <tbody id="tablaVendedoresBody"></tbody>
                   </table>
@@ -331,11 +359,11 @@
     function inicializarBaseDeDatos() {
       if (!localStorage.getItem(KEY_USUARIOS)) {
         const usuariosIniciales = [
-          { user: 'daniel', pass: '00000', nombre: 'Daniel', rol: 'admin', comision: 5, repartidor: 8 },
-          { user: 'sergio', pass: 'cero', nombre: 'Sergio', rol: 'admin', comision: 5, repartidor: 8 },
-          { user: 'emilce', pass: '0100', nombre: 'Emilce', rol: 'vendedor', comision: 5, repartidor: 8 },
-          { user: 'kevin', pass: '0200', nombre: 'Kevin', rol: 'vendedor', comision: 5, repartidor: 8 },
-          { user: 'ramona', pass: '0300', nombre: 'Ramona', rol: 'vendedor', comision: 5, repartidor: 8 }
+          { user: 'daniel', pass: '00000', nombre: 'Daniel', rol: 'admin', comision: 5, repartidor: 9 },
+          { user: 'sergio', pass: 'cero', nombre: 'Sergio', rol: 'admin', comision: 5, repartidor: 9 },
+          { user: 'emilce', pass: '0100', nombre: 'Emilce', rol: 'vendedor', comision: 5, repartidor: 9 },
+          { user: 'kevin', pass: '0200', nombre: 'Kevin', rol: 'vendedor', comision: 5, repartidor: 9 },
+          { user: 'ramona', pass: '0300', nombre: 'Ramona', rol: 'vendedor', comision: 5, repartidor: 9 }
         ];
         localStorage.setItem(KEY_USUARIOS, JSON.stringify(usuariosIniciales));
       }
@@ -388,7 +416,7 @@
     function sincronizarDatosPendientes() {
       const cola = JSON.parse(localStorage.getItem(KEY_COLA_OFFLINE) || "[]");
       if (cola.length > 0) {
-        console.log("Sincronizando con la nube/servidor:", cola);
+        console.log("Sincronizando datos pendientes:", cola);
         localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify([]));
       }
     }
@@ -705,13 +733,16 @@
       if (itemExistente) {
         itemExistente.cantidad += cantidad;
         itemExistente.subtotal = itemExistente.cantidad * itemExistente.precio;
+        itemExistente.costoSubtotal = itemExistente.cantidad * (art.costo || 0);
       } else {
         pedidoTemporal.push({
           articuloId: art.id,
           nombre: art.nombre,
           precio: art.precio,
+          costoUnitario: art.costo || 0,
           cantidad: cantidad,
-          subtotal: art.precio * cantidad
+          subtotal: art.precio * cantidad,
+          costoSubtotal: (art.costo || 0) * cantidad
         });
       }
 
@@ -756,6 +787,7 @@
       const cliente = clientes.find(c => c.id === clienteId);
 
       const total = pedidoTemporal.reduce((sum, item) => sum + item.subtotal, 0);
+      const costoTotal = pedidoTemporal.reduce((sum, item) => sum + (item.costoSubtotal || 0), 0);
 
       const nuevoPedido = {
         id: Date.now().toString(),
@@ -764,6 +796,7 @@
         cliente: cliente,
         items: [...pedidoTemporal],
         total: total,
+        costoTotal: costoTotal,
         fecha: new Date().toLocaleString('es-AR')
       };
 
@@ -816,7 +849,7 @@
       });
     }
 
-    // --- GENERACIÓN DE 2 PDFS (BOLETAS Y CONSOLIDADO) ---
+    // --- GENERACIÓN DE PDFS ---
     function exportarDoblePDFVendedor() {
       const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
       const misPedidos = pedidos.filter(p => p.vendedorUser === usuarioActual.user);
@@ -827,7 +860,6 @@
       generarPDFConsolidado(misPedidos, usuarioActual.nombre);
     }
 
-    // PDF 1: Boletas de clientes (Agrupadas hasta 3 por hoja A4)
     function generarPDFBoletas(pedidosList, vendedorNombre) {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('p', 'mm', 'a4');
@@ -843,11 +875,9 @@
           countInPage = 0;
         }
 
-        // Borde del Ticket/Boleta
         doc.setLineWidth(0.3);
         doc.rect(10, currentY, 190, 82);
 
-        // Cabecera Boleta
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text(`BOLETA DE PEDIDO #${pedido.id.slice(-6)}`, 15, currentY + 7);
@@ -857,7 +887,6 @@
 
         doc.line(10, currentY + 10, 200, currentY + 10);
 
-        // Datos Cliente
         doc.setFont('helvetica', 'bold');
         doc.text(`Cliente: ${pedido.cliente.nombre}`, 15, currentY + 16);
         doc.setFont('helvetica', 'normal');
@@ -866,7 +895,6 @@
 
         doc.line(10, currentY + 24, 200, currentY + 24);
 
-        // Encabezado Detalle
         doc.setFont('helvetica', 'bold');
         doc.text('Cant.', 15, currentY + 29);
         doc.text('Producto', 35, currentY + 29);
@@ -874,7 +902,6 @@
         doc.text('Subtotal', 170, currentY + 29);
         doc.line(10, currentY + 31, 200, currentY + 31);
 
-        // Items (hasta 6 por miniboleta para no sobrepasar)
         doc.setFont('helvetica', 'normal');
         let itemY = currentY + 36;
         const visibleItems = pedido.items.slice(0, 6);
@@ -892,7 +919,6 @@
           doc.text(`...y ${pedido.items.length - 6} productos más.`, 35, itemY);
         }
 
-        // Pie y Total Boleta
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.line(10, currentY + 72, 200, currentY + 72);
@@ -905,12 +931,10 @@
       doc.save(`Boletas_Pedidos_${vendedorNombre.replace(/\s+/g, '_')}.pdf`);
     }
 
-    // PDF 2: Consolidado de Cierre
     function generarPDFConsolidado(pedidosList, vendedorNombre) {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('p', 'mm', 'a4');
 
-      // Agrupar Totales por Articulo
       const articulosResumen = {};
       let totalFacturado = 0;
       const clientesUnicos = new Set();
@@ -928,7 +952,6 @@
         });
       });
 
-      // Encabezado PDF
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       doc.text("RESUMEN CONSOLIDADO DE VENTAS", 15, 18);
@@ -942,7 +965,6 @@
 
       doc.line(15, 34, 195, 34);
 
-      // Tabla de Consolidado
       doc.setFont('helvetica', 'bold');
       doc.text("Producto / Descripción", 15, 41);
       doc.text("Cant. Total", 110, 41);
@@ -973,6 +995,113 @@
       doc.save(`Consolidado_Ventas_${vendedorNombre.replace(/\s+/g, '_')}.pdf`);
     }
 
+    // --- NUEVO: PDF BALANCE SEMANAL FINANCIERO (ADMIN) ---
+    function generarPDFBalanceSemanal() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      const pedidosActivos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
+      const historialCierres = JSON.parse(localStorage.getItem(KEY_HISTORIAL) || "[]");
+      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
+      const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
+
+      // Consolidar todos los pedidos (activos + cierres pasados)
+      let todosLosPedidos = [...pedidosActivos];
+      historialCierres.forEach(c => {
+        if (c.pedidos && Array.isArray(c.pedidos)) {
+          todosLosPedidos.push(...c.pedidos);
+        }
+      });
+
+      if (todosLosPedidos.length === 0) {
+        return alert("No hay pedidos ni cierres registrados para generar el balance.");
+      }
+
+      let ventaBrutaTotal = 0;
+      let costoArticulosTotal = 0;
+      let comisionVendedoresTotal = 0;
+      let comisionRepartoTotal = 0;
+
+      todosLosPedidos.forEach(p => {
+        ventaBrutaTotal += p.total;
+
+        // Calcular costo de los artículos del pedido
+        p.items.forEach(it => {
+          let art = articulos.find(a => a.id === it.articuloId || a.nombre === it.nombre);
+          let costoUnit = art ? art.costo : (it.costoUnitario || 0);
+          costoArticulosTotal += (costoUnit * it.cantidad);
+        });
+
+        // Buscar comisiones configuradas del vendedor
+        let vendObj = usuarios.find(u => u.user === p.vendedorUser);
+        let pctVenta = vendObj ? (parseFloat(vendObj.comision) || 0) : 5;
+        let pctReparto = vendObj ? (parseFloat(vendObj.repartidor) || 0) : 9;
+
+        comisionVendedoresTotal += (p.total * (pctVenta / 100));
+        comisionRepartoTotal += (p.total * (pctReparto / 100));
+      });
+
+      let gananciaNeta = ventaBrutaTotal - costoArticulosTotal - comisionVendedoresTotal - comisionRepartoTotal;
+
+      // Dibujar PDF
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text("BALANCE SEMANAL DE VENTAS Y RENTABILIDAD", 15, 20);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Fecha de emisión: ${new Date().toLocaleString('es-AR')}`, 15, 27);
+      doc.text(`Total Pedidos Auditados: ${todosLosPedidos.length}`, 15, 32);
+
+      doc.line(15, 36, 195, 36);
+
+      // Cuadro de Resumen Financiero
+      doc.setFillColor(245, 247, 250);
+      doc.rect(15, 42, 180, 85, 'F');
+      doc.rect(15, 42, 180, 85, 'S');
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text("DESGLOSE FINANCIERO CONSOLIDADO", 20, 52);
+      doc.line(20, 55, 190, 55);
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text("Venta Bruta Total acumulada:", 20, 65);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`$ ${ventaBrutaTotal.toFixed(2)}`, 140, 65);
+
+      doc.setFont('helvetica', 'normal');
+      doc.text("(-) Costo Directo de Artículos:", 20, 75);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`$ ${costoArticulosTotal.toFixed(2)}`, 140, 75);
+
+      doc.setFont('helvetica', 'normal');
+      doc.text("(-) Comisiones de Vendedores:", 20, 85);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`$ ${comisionVendedoresTotal.toFixed(2)}`, 140, 85);
+
+      doc.setFont('helvetica', 'normal');
+      doc.text("(-) Comisiones de Reparto / Logística:", 20, 95);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`$ ${comisionRepartoTotal.toFixed(2)}`, 140, 95);
+
+      doc.line(20, 102, 190, 102);
+
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(gananciaNeta >= 0 ? 0 : 200, gananciaNeta >= 0 ? 128 : 0, 0);
+      doc.text("GANANCIA NETA RESTANTE:", 20, 115);
+      doc.text(`$ ${gananciaNeta.toFixed(2)}`, 140, 115);
+
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'italic');
+      doc.text("* Este reporte considera todos los pedidos del ciclo activo e historial de cierres guardados.", 15, 135);
+
+      doc.save(`Balance_Semanal_${new Date().toISOString().slice(0,10)}.pdf`);
+    }
+
     // --- CIERRE DE DIA E HISTORIAL ---
     function efectuarCierreDeDia() {
       let pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
@@ -997,7 +1126,6 @@
         historial.push(cierre);
         localStorage.setItem(KEY_HISTORIAL, JSON.stringify(historial));
 
-        // Limpiar pedidos activos del vendedor
         pedidos = pedidos.filter(p => p.vendedorUser !== usuarioActual.user);
         localStorage.setItem(KEY_PEDIDOS, JSON.stringify(pedidos));
 
@@ -1022,7 +1150,7 @@
         return;
       }
 
-      cierresVer.reverse().forEach(c => {
+      cierresVer.slice().reverse().forEach(c => {
         cont.innerHTML += `
           <div class="card mb-2 p-3">
             <div class="d-flex justify-content-between align-items-center">
@@ -1044,6 +1172,8 @@
       const n = document.getElementById('vendNombre').value.trim();
       const p = document.getElementById('vendPass').value.trim();
       const r = document.getElementById('vendRol').value;
+      const comVenta = parseFloat(document.getElementById('vendComisionVenta').value) || 0;
+      const comReparto = parseFloat(document.getElementById('vendComisionReparto').value) || 0;
 
       if (!u || !n || !p) return alert('Complete todos los campos del vendedor.');
 
@@ -1051,10 +1181,27 @@
 
       if (editUser) {
         const idx = usuarios.findIndex(x => x.user === editUser);
-        if (idx >= 0) usuarios[idx] = { ...usuarios[idx], user: u, nombre: n, pass: p, rol: r };
+        if (idx >= 0) {
+          usuarios[idx] = { 
+            ...usuarios[idx], 
+            user: u, 
+            nombre: n, 
+            pass: p, 
+            rol: r, 
+            comision: comVenta, 
+            repartidor: comReparto 
+          };
+        }
       } else {
         if (usuarios.some(x => x.user === u)) return alert('El nombre de usuario ya existe.');
-        usuarios.push({ user: u, pass: p, nombre: n, rol: r, comision: 5, repartidor: 8 });
+        usuarios.push({ 
+          user: u, 
+          pass: p, 
+          nombre: n, 
+          rol: r, 
+          comision: comVenta, 
+          repartidor: comReparto 
+        });
       }
 
       localStorage.setItem(KEY_USUARIOS, JSON.stringify(usuarios));
@@ -1062,10 +1209,12 @@
       document.getElementById('vendUser').value = '';
       document.getElementById('vendNombre').value = '';
       document.getElementById('vendPass').value = '';
+      document.getElementById('vendComisionVenta').value = '5';
+      document.getElementById('vendComisionReparto').value = '9';
 
       renderizarTablaVendedores();
       cargarVendedoresEnSeguimiento();
-      alert('Vendedor guardado con éxito.');
+      alert('Vendedor y comisiones guardados con éxito.');
     }
 
     function renderizarTablaVendedores() {
@@ -1074,11 +1223,16 @@
       tbody.innerHTML = '';
 
       usuarios.forEach(u => {
+        const comV = u.comision !== undefined ? u.comision : 5;
+        const comR = u.repartidor !== undefined ? u.repartidor : 9;
+
         tbody.innerHTML += `
           <tr>
             <td>${u.user}</td>
             <td>${u.nombre}</td>
             <td><span class="badge ${u.rol === 'admin' ? 'badge-admin' : 'badge-vendedor'}">${u.rol}</span></td>
+            <td><span class="badge bg-info text-dark">${comV}%</span></td>
+            <td><span class="badge bg-secondary">${comR}%</span></td>
             <td>
               <button class="btn btn-sm btn-outline-primary me-1" onclick="editarVendedor('${u.user}')"><i class="fa-solid fa-pen"></i></button>
               <button class="btn btn-sm btn-outline-danger" onclick="eliminarVendedor('${u.user}')"><i class="fa-solid fa-trash"></i></button>
@@ -1097,6 +1251,8 @@
         document.getElementById('vendNombre').value = user.nombre;
         document.getElementById('vendPass').value = user.pass;
         document.getElementById('vendRol').value = user.rol;
+        document.getElementById('vendComisionVenta').value = user.comision !== undefined ? user.comision : 5;
+        document.getElementById('vendComisionReparto').value = user.repartidor !== undefined ? user.repartidor : 9;
       }
     }
 
