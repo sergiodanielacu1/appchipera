@@ -765,4 +765,97 @@
 
           {/* VISTA CATÁLOGO Y STOCK (ADMIN) */}
           {vista === 'catalogo' && usuarioActual.esAdmin && (
-            <div className="space-y
+            <div className="space-y-4">
+              <h3 className="font-bold text-indigo-400 text-sm">Catálogo y Disponibilidad</h3>
+              <form onSubmit={crearArticuloCatalogo} className="bg-slate-800 p-3.5 rounded-xl space-y-2 border border-slate-700">
+                <input type="text" placeholder="Nombre del artículo (ej: Tira de Pilas)" value={artNombre} onChange={e=>setArtNombre(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+                <input type="number" placeholder="Precio Base ($)" value={artPrecio} onChange={e=>setArtPrecio(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">+ Agregar Artículo al Catálogo</button>
+              </form>
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-400">Artículos Creados:</h4>
+                {catalogo.map(art => (
+                  <div key={art.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center text-xs">
+                    <div>
+                      <div className="font-bold text-white">{art.nombre}</div>
+                      <div className="text-emerald-400 font-bold">${art.precio}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => toggleDisponibilidadArticulo(art.id)} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border ${art.disponible ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
+                        {art.disponible ? 'Disponible' : 'Sin Stock'}
+                      </button>
+                      <button onClick={() => eliminarArticuloCatalogo(art.id)} className="text-red-400 text-xs px-2">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* VISTA REPORTES MENSUALES (ADMIN) */}
+          {vista === 'reportes' && usuarioActual.esAdmin && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-indigo-400 text-sm">📊 Planilla de Ventas Mensuales</h3>
+              <p className="text-xs text-slate-400">Calculado automáticamente con las ventas acumuladas por mes.</p>
+
+              <div className="space-y-3">
+                {Object.keys(statsMensuales).map(vId => {
+                  const data = statsMensuales[vId];
+                  return (
+                    <div key={vId} className="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-2">
+                      <div className="flex justify-between items-center border-b border-slate-700/60 pb-2">
+                        <span className="font-bold text-xs text-white">{data.nombre}</span>
+                        <span className="text-[11px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md border border-amber-500/30 font-bold">
+                          🏆 Mejor Mes: {data.mejorMes} (${data.mejorMonto})
+                        </span>
+                      </div>
+
+                      <div className="text-xs space-y-1 pt-1">
+                        {Object.keys(data.meses).length === 0 ? (
+                          <div className="text-slate-500 text-[11px]">Sin registros de ventas todavía.</div>
+                        ) : (
+                          Object.keys(data.meses).map(m => (
+                            <div key={m} className="flex justify-between text-slate-300 text-[11px]">
+                              <span>Mes: <strong>{m}</strong></span>
+                              <span className="font-bold text-emerald-400">${data.meses[m]}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* VISTA RESPALDO */}
+          {vista === 'respaldo' && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-indigo-400 text-sm">⚙️ Memoria y Respaldos</h3>
+              <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3">
+                <button onClick={exportarCopia} className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">
+                  📥 Descargar Copia Completa (JSON)
+                </button>
+                <div className="border-t border-slate-700 pt-3">
+                  <label className="block text-xs text-slate-400 mb-1">Restaurar Copia de Seguridad:</label>
+                  <input type="file" accept=".json" onChange={importarCopia} className="w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-slate-700 file:text-white"/>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW error:', err));
+      });
+    }
+  </script>
+</body>
+</html>
