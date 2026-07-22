@@ -3,849 +3,492 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VentasApp Offline</title>
-  
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0f172a">
-
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <title>Sistema de Ventas Offline</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
+      --danger: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
+    body { background-color: var(--bg); color: var(--text); padding-bottom: 70px; }
+    
+    .header { background: var(--primary); color: white; padding: 1rem; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .header h1 { font-size: 1.25rem; font-weight: 600; }
+    .user-badge { font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 12px; margin-top: 4px; display: inline-block; }
+
+    .container { padding: 1rem; max-width: 600px; margin: 0 auto; }
+    .card { background: var(--card-bg); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
+    input, select { width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; }
+    
+    .btn { width: 100%; padding: 0.625rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; background: var(--primary); color: white; margin-top: 0.5rem; }
+    .btn-danger { background: var(--danger); }
+    .btn-warning { background: var(--warning); color: #fff; }
+    .btn-success { background: var(--success); }
+    .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; width: auto; display: inline-block; }
+
+    .nav-tabs { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; border-top: 1px solid var(--border); z-index: 100; }
+    .tab-btn { flex: 1; padding: 0.75rem 0.25rem; border: none; background: none; font-size: 0.7rem; color: #64748b; text-align: center; }
+    .tab-btn.active { color: var(--primary); font-weight: bold; border-top: 2px solid var(--primary); }
+
+    .list-item { border-bottom: 1px solid var(--border); padding: 0.75rem 0; display: flex; justify-content: space-between; align-items: center; }
+    .list-item:last-child { border-bottom: none; }
+    
+    .discount-badge { background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+    .hidden { display: none; }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen">
-  <div id="root"></div>
-
-  <script type="text/babel">
-    const { useState, useEffect } = React;
-
-    const usuariosIniciales = [
-      { id: 100, usuario: 'sergio', clave: 'cero', nombre: 'Sergio (Admin General)', esAdmin: true, comisionVendedor: 0, comisionRepartidor: 0 },
-      { id: 101, usuario: 'daniel', clave: '00000', nombre: 'Daniel (Admin)', esAdmin: true, comisionVendedor: 0, comisionRepartidor: 0 },
-      { id: 1, usuario: 'emilce', clave: '0100', nombre: 'Emilce', esAdmin: false, comisionVendedor: 5, comisionRepartidor: 9 },
-      { id: 2, usuario: 'kevin', clave: '0200', nombre: 'Kevin', esAdmin: false, comisionVendedor: 5, comisionRepartidor: 8 },
-      { id: 3, usuario: 'ramona', clave: '0300', nombre: 'Ramona', esAdmin: false, comisionVendedor: 5, comisionRepartidor: 9 }
-    ];
-
-    const catalogoInicial = [
-      { id: 1, nombre: 'Tira de pilas Duracell', costo: 1200, margen: 25, precio: 1500, disponible: true },
-      { id: 2, nombre: 'Fideos Tirabuzón 500g', costo: 680, margen: 25, precio: 850, disponible: true },
-      { id: 3, nombre: 'Aceite de Girasol 1L', costo: 1760, margen: 25, precio: 2200, disponible: true },
-      { id: 4, nombre: 'Jabón en polvo 800g', costo: 1520, margen: 25, precio: 1900, disponible: false }
-    ];
-
-    const cargarMemoriaPersistente = (clave, valorDefecto) => {
-      try {
-        const guardado = localStorage.getItem(clave);
-        if (guardado !== null && guardado !== undefined) {
-          const parsed = JSON.parse(guardado);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch (e) {
-        console.error("Error cargando " + clave, e);
-      }
-      return valorDefecto;
-    };
-
-    function App() {
-      // Estado Persistente
-      const [vendedores, setVendedores] = useState(() => cargarMemoriaPersistente('app_vendedores_v2', usuariosIniciales));
-      const [catalogo, setCatalogo] = useState(() => cargarMemoriaPersistente('app_catalogo_v2', catalogoInicial));
-      const [clientes, setClientes] = useState(() => cargarMemoriaPersistente('app_clientes_v2', []));
-      const [pedidos, setPedidos] = useState(() => cargarMemoriaPersistente('app_pedidos_v2', []));
-      const [historialDias, setHistorialDias] = useState(() => cargarMemoriaPersistente('app_historial_v2', []));
-
-      const [usuarioActual, setUsuarioActual] = useState(() => {
-        try {
-          const g = localStorage.getItem('app_sesion_activa_v2');
-          return g ? JSON.parse(g) : null;
-        } catch (e) { return null; }
-      });
-
-      // Vistas
-      const [vista, setVista] = useState('clientes');
-      const [vendedorFiltroId, setVendedorFiltroId] = useState('todos');
-
-      // Login
-      const [inputUser, setInputUser] = useState('');
-      const [inputPass, setInputPass] = useState('');
-      const [error, setError] = useState('');
-
-      // Form Vendedores (Admin)
-      const [nuevoUser, setNuevoUser] = useState('');
-      const [nuevaClave, setNuevaClave] = useState('');
-      const [nuevoNombre, setNuevoNombre] = useState('');
-      const [comisionVend, setComisionVend] = useState('5');
-      const [comisionRep, setComisionRep] = useState('9');
-      const [vendedorEditandoId, setVendedorEditandoId] = useState(null);
-
-      // Form Catálogo (Admin)
-      const [artNombre, setArtNombre] = useState('');
-      const [artCosto, setArtCosto] = useState('');
-      const [artMargen, setArtMargen] = useState('25');
-
-      // Form Cliente
-      const [nombreCli, setNombreCli] = useState('');
-      const [dirCli, setDirCli] = useState('');
-      const [locCli, setLocCli] = useState('');
-      const [busqueda, setBusqueda] = useState('');
-
-      // Form Pedido & Autocompletado
-      const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
-      const [pedidoEditandoId, setPedidoEditandoId] = useState(null);
-      const [itemsPedido, setItemsPedido] = useState([]);
-      const [prodDesc, setProdDesc] = useState('');
-      const [prodCant, setProdCant] = useState('1');
-      const [prodPrecio, setProdPrecio] = useState('');
-      const [prodCostoUnit, setProdCostoUnit] = useState(0);
-      const [sugerencias, setSugerencias] = useState([]);
-
-      // Persistencia Automática
-      useEffect(() => { localStorage.setItem('app_vendedores_v2', JSON.stringify(vendedores)); }, [vendedores]);
-      useEffect(() => { localStorage.setItem('app_catalogo_v2', JSON.stringify(catalogo)); }, [catalogo]);
-      useEffect(() => { localStorage.setItem('app_clientes_v2', JSON.stringify(clientes)); }, [clientes]);
-      useEffect(() => { localStorage.setItem('app_pedidos_v2', JSON.stringify(pedidos)); }, [pedidos]);
-      useEffect(() => { localStorage.setItem('app_historial_v2', JSON.stringify(historialDias)); }, [historialDias]);
-      useEffect(() => {
-        if (usuarioActual) localStorage.setItem('app_sesion_activa_v2', JSON.stringify(usuarioActual));
-        else localStorage.removeItem('app_sesion_activa_v2');
-      }, [usuarioActual]);
-
-      // Autocompletado inteligente
-      const handleInputProdChange = (e) => {
-        const val = e.target.value;
-        setProdDesc(val);
-        if (val.trim().length > 0) {
-          const coincidencias = catalogo.filter(art => 
-            art.nombre.toLowerCase().includes(val.toLowerCase())
-          );
-          setSugerencias(coincidencias);
-        } else {
-          setSugerencias([]);
-        }
-      };
-
-      const seleccionarSugerencia = (art) => {
-        if (!art.disponible) {
-          alert('Este artículo está agotado (Sin Stock).');
-          return;
-        }
-        setProdDesc(art.nombre);
-        setProdPrecio(art.precio);
-        setProdCostoUnit(art.costo || 0);
-        setSugerencias([]);
-      };
-
-      const handleLogin = (e) => {
-        e.preventDefault();
-        const u = inputUser.trim().toLowerCase();
-        const p = inputPass.trim();
-        const user = vendedores.find(v => v.usuario.trim().toLowerCase() === u && v.clave.trim() === p);
-        if (user) {
-          setUsuarioActual(user);
-          setError('');
-          setInputUser(''); setInputPass('');
-        } else {
-          setError('Usuario o contraseña incorrectos');
-        }
-      };
-
-      const guardarVendedor = (e) => {
-        e.preventDefault();
-        if (!nuevoUser || !nuevaClave || !nuevoNombre) return;
-
-        if (vendedorEditandoId) {
-          setVendedores(vendedores.map(v => v.id === vendedorEditandoId ? {
-            ...v,
-            nombre: nuevoNombre.trim(),
-            usuario: nuevoUser.trim().toLowerCase(),
-            clave: nuevaClave.trim(),
-            comisionVendedor: Number(comisionVend),
-            comisionRepartidor: Number(comisionRep)
-          } : v));
-          setVendedorEditandoId(null);
-          alert('Vendedor actualizado');
-        } else {
-          if (vendedores.some(v => v.usuario.toLowerCase() === nuevoUser.trim().toLowerCase())) {
-            return alert('Ese usuario ya existe');
-          }
-          const nuevo = {
-            id: Date.now(),
-            usuario: nuevoUser.trim().toLowerCase(),
-            clave: nuevaClave.trim(),
-            nombre: nuevoNombre.trim(),
-            esAdmin: false,
-            comisionVendedor: Number(comisionVend),
-            comisionRepartidor: Number(comisionRep)
-          };
-          setVendedores([...vendedores, nuevo]);
-          alert('Vendedor creado');
-        }
-        setNuevoUser(''); setNuevaClave(''); setNuevoNombre('');
-        setComisionVend('5'); setComisionRep('9');
-      };
-
-      const editarVendedor = (v) => {
-        setVendedorEditandoId(v.id);
-        setNuevoNombre(v.nombre);
-        setNuevoUser(v.usuario);
-        setNuevaClave(v.clave);
-        setComisionVend(String(v.comisionVendedor || 5));
-        setComisionRep(String(v.comisionRepartidor || 9));
-      };
-
-      const eliminarVendedor = (id) => {
-        if (confirm('¿Eliminar este vendedor?')) {
-          setVendedores(vendedores.filter(v => v.id !== id));
-        }
-      };
-
-      const crearArticuloCatalogo = (e) => {
-        e.preventDefault();
-        if (!artNombre || !artCosto || !artMargen) return;
-        
-        const costoNum = Number(artCosto);
-        const margenNum = Number(artMargen);
-        const precioCalculado = Math.round(costoNum * (1 + (margenNum / 100)));
-
-        const nuevo = {
-          id: Date.now(),
-          nombre: artNombre.trim(),
-          costo: costoNum,
-          margen: margenNum,
-          precio: precioCalculado,
-          disponible: true
-        };
-        setCatalogo([...catalogo, nuevo]);
-        setArtNombre(''); setArtCosto(''); setArtMargen('25');
-      };
-
-      const toggleDisponibilidadArticulo = (id) => {
-        setCatalogo(catalogo.map(art => art.id === id ? { ...art, disponible: !art.disponible } : art));
-      };
-
-      const eliminarArticuloCatalogo = (id) => {
-        if (confirm('¿Eliminar este artículo del catálogo?')) {
-          setCatalogo(catalogo.filter(art => art.id !== id));
-        }
-      };
-
-      const guardarCliente = (e) => {
-        e.preventDefault();
-        if (!nombreCli || !dirCli || !locCli) return;
-        const nuevo = { id: Date.now(), nombre: nombreCli.trim(), direccion: dirCli.trim(), localidad: locCli.trim(), vendedorId: usuarioActual.id };
-        setClientes([...clientes, nuevo]);
-        setNombreCli(''); setDirCli(''); setLocCli('');
-        alert('Cliente guardado');
-      };
-
-      const eliminarCliente = (id) => {
-        if (confirm('¿Eliminar cliente definitivamente?')) {
-          setClientes(clientes.filter(c => c.id !== id));
-        }
-      };
-
-      const agregarProducto = (e) => {
-        e.preventDefault();
-        if (!prodDesc || !prodPrecio || Number(prodCant) <= 0) return;
-        const item = {
-          id: Date.now(),
-          descripcion: prodDesc.trim(),
-          cantidad: Number(prodCant),
-          precio: Number(prodPrecio),
-          costoUnitario: Number(prodCostoUnit) || 0,
-          subtotal: Number(prodCant) * Number(prodPrecio),
-          costoTotal: Number(prodCant) * (Number(prodCostoUnit) || 0)
-        };
-        setItemsPedido([...itemsPedido, item]);
-        setProdDesc(''); setProdCant('1'); setProdPrecio(''); setProdCostoUnit(0);
-        setSugerencias([]);
-      };
-
-      const eliminarItemPedido = (id) => {
-        setItemsPedido(itemsPedido.filter(i => i.id !== id));
-      };
-
-      const iniciarNuevoPedido = (cliente) => {
-        setClienteSeleccionado(cliente);
-        setPedidoEditandoId(null);
-        setItemsPedido([]);
-      };
-
-      const editarPedidoExistente = (pedido) => {
-        setClienteSeleccionado(pedido.cliente);
-        setPedidoEditandoId(pedido.id);
-        setItemsPedido(pedido.items);
-      };
-
-      const cancelarPedido = (id) => {
-        if (confirm('¿Estás seguro de cancelar este pedido?')) {
-          setPedidos(pedidos.filter(p => p.id !== id));
-        }
-      };
-
-      const guardarOActualizarPedido = () => {
-        if (itemsPedido.length === 0) return alert('El pedido debe contener al menos un artículo');
-        const total = itemsPedido.reduce((acc, item) => acc + item.subtotal, 0);
-
-        if (pedidoEditandoId) {
-          setPedidos(pedidos.map(p => p.id === pedidoEditandoId ? { ...p, items: itemsPedido, total } : p));
-          alert('Pedido modificado correctamente');
-        } else {
-          const nuevoPedido = {
-            id: Date.now(),
-            nroBoleta: 'N° ' + String(pedidos.length + 1).padStart(5, '0'),
-            fecha: new Date().toLocaleString('es-AR'),
-            fechaIso: new Date().toISOString(),
-            vendedorId: usuarioActual.id,
-            vendedorNombre: usuarioActual.nombre,
-            cliente: clienteSeleccionado,
-            items: itemsPedido,
-            total
-          };
-          setPedidos([nuevoPedido, ...pedidos]);
-          alert('Pedido guardado correctamente');
-        }
-
-        setItemsPedido([]); setClienteSeleccionado(null); setPedidoEditandoId(null);
-      };
-
-      const realizarCierreDeDia = () => {
-        const pedidosVendedor = pedidos.filter(p => p.vendedorId === usuarioActual.id);
-        if (pedidosVendedor.length === 0) return alert('No hay pedidos en el día actual para realizar el cierre.');
-
-        if (confirm('¿Deseas realizar el CIERRE DE DÍA?\nSe archivará la jornada e iniciará un nuevo recorrido.')) {
-          const cierre = {
-            id: Date.now(),
-            fechaCierre: new Date().toLocaleString('es-AR'),
-            fechaIso: new Date().toISOString(),
-            vendedorId: usuarioActual.id,
-            vendedorNombre: usuarioActual.nombre,
-            pedidos: pedidosVendedor,
-            totalVendido: pedidosVendedor.reduce((acc, p) => acc + p.total, 0)
-          };
-
-          setHistorialDias([cierre, ...historialDias]);
-          setPedidos(pedidos.filter(p => p.vendedorId !== usuarioActual.id));
-          alert('¡Cierre de día completado!');
-          setVista('historial');
-        }
-      };
-
-      // PDF Ganancia Neta y Consolidado Financiero (Solo Admins)
-      const generarPDFGananciaNeta = () => {
-        const pProcesar = pedidos.filter(p => vendedorFiltroId === 'todos' ? true : p.vendedorId === Number(vendedorFiltroId));
-        if (pProcesar.length === 0) return alert('No hay ventas registradas para generar el reporte financiero.');
-
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-
-        doc.setFontSize(14); doc.setFont(undefined, 'bold');
-        doc.text('REPORTE FINANCIERO Y GANANCIA NETA', 15, 18);
-        doc.setFontSize(9); doc.setFont(undefined, 'normal');
-        doc.text(`Fecha de Emisión: ${new Date().toLocaleString('es-AR')}`, 15, 24);
-        doc.line(15, 27, 195, 27);
-
-        // Agrupar por Vendedor
-        const resumenVendedores = {};
-        let ventaTotalGeneral = 0;
-        let costoTotalGeneral = 0;
-        let comisionVendTotalGeneral = 0;
-        let comisionRepTotalGeneral = 0;
-
-        pProcesar.forEach(p => {
-          const vObj = vendedores.find(v => v.id === p.vendedorId) || { comisionVendedor: 5, comisionRepartidor: 9 };
-          if (!resumenVendedores[p.vendedorId]) {
-            resumenVendedores[p.vendedorId] = {
-              nombre: p.vendedorNombre,
-              comisionVendPct: vObj.comisionVendedor || 5,
-              comisionRepPct: vObj.comisionRepartidor || 9,
-              ventaTotal: 0,
-              costoTotal: 0
-            };
-          }
-
-          p.items.forEach(it => {
-            resumenVendedores[p.vendedorId].ventaTotal += it.subtotal;
-            resumenVendedores[p.vendedorId].costoTotal += (it.costoTotal || 0);
-          });
-        });
-
-        let y = 35;
-        doc.setFontSize(11); doc.setFont(undefined, 'bold');
-        doc.text('DETALLE POR VENDEDOR:', 15, y);
-        y += 7;
-
-        Object.values(resumenVendedores).forEach(v => {
-          const comisionVendMonto = v.ventaTotal * (v.comisionVendPct / 100);
-          const comisionRepMonto = v.ventaTotal * (v.comisionRepPct / 100);
-          const gananciaNetaVendedor = v.ventaTotal - v.costoTotal - comisionVendMonto - comisionRepMonto;
-
-          ventaTotalGeneral += v.ventaTotal;
-          costoTotalGeneral += v.costoTotal;
-          comisionVendTotalGeneral += comisionVendMonto;
-          comisionRepTotalGeneral += comisionRepMonto;
-
-          doc.setFontSize(10); doc.setFont(undefined, 'bold');
-          doc.text(`• Vendedor: ${v.nombre}`, 15, y);
-          y += 5;
-          doc.setFontSize(9); doc.setFont(undefined, 'normal');
-          doc.text(`  Venta Bruta Total: $${v.ventaTotal}`, 20, y); y += 5;
-          doc.text(`  (-) Costo de Mercadería: -$${v.costoTotal}`, 20, y); y += 5;
-          doc.text(`  (-) Comisión Vendedor (${v.comisionVendPct}%): -$${comisionVendMonto.toFixed(2)}`, 20, y); y += 5;
-          doc.text(`  (-) Comisión Repartidor (${v.comisionRepPct}%): -$${comisionRepMonto.toFixed(2)}`, 20, y); y += 5;
-          doc.setFont(undefined, 'bold');
-          doc.text(`  (=) GANANCIA NETA: $${gananciaNetaVendedor.toFixed(2)}`, 20, y);
-          y += 8;
-          doc.line(20, y - 3, 190, y - 3);
-        });
-
-        const gananciaNetaTotalGeneral = ventaTotalGeneral - costoTotalGeneral - comisionVendTotalGeneral - comisionRepTotalGeneral;
-
-        y += 5;
-        doc.setFontSize(11); doc.setFont(undefined, 'bold');
-        doc.text('CONSOLIDADO GENERAL DE LA EMPRESA:', 15, y); y += 7;
-        doc.setFontSize(9); doc.setFont(undefined, 'normal');
-        doc.text(`Venta Total Bruta: $${ventaTotalGeneral}`, 15, y); y += 5;
-        doc.text(`(-) Costo Total Mercadería: -$${costoTotalGeneral}`, 15, y); y += 5;
-        doc.text(`(-) Total Comisiones Vendedores: -$${comisionVendTotalGeneral.toFixed(2)}`, 15, y); y += 5;
-        doc.text(`(-) Total Comisiones Repartidores: -$${comisionRepTotalGeneral.toFixed(2)}`, 15, y); y += 7;
-        
-        doc.setFontSize(12); doc.setFont(undefined, 'bold');
-        doc.text(`GANANCIA NETA FINAL: $${gananciaNetaTotalGeneral.toFixed(2)}`, 15, y);
-
-        doc.save(`Ganancia_Neta_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
-      };
-
-      const exportarCopia = () => {
-        const datos = { vendedores, catalogo, clientes, pedidos, historialDias };
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(datos));
-        const a = document.createElement('a');
-        a.setAttribute("href", dataStr);
-        a.setAttribute("download", `Respaldo_Ventas_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`);
-        a.click();
-      };
-
-      const importarCopia = (event) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const res = JSON.parse(e.target.result);
-            if (res.clientes) setClientes(res.clientes);
-            if (res.vendedores) setVendedores(res.vendedores);
-            if (res.catalogo) setCatalogo(res.catalogo);
-            if (res.pedidos) setPedidos(res.pedidos);
-            if (res.historialDias) setHistorialDias(res.historialDias);
-            alert('¡Copia de seguridad restaurada exitosamente!');
-          } catch (err) { alert('Error al procesar el archivo'); }
-        };
-        if (event.target.files[0]) reader.readAsText(event.target.files[0]);
-      };
-
-      // LOGIN VISTA
-      if (!usuarioActual) {
-        return (
-          <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="bg-slate-800 p-6 rounded-2xl w-full max-w-sm border border-slate-700 shadow-xl space-y-4">
-              <h1 className="text-xl font-bold text-center text-white">VentasApp Offline</h1>
-              <p className="text-xs text-slate-400 text-center">Ingresa con tu usuario y clave</p>
-              {error && <p className="text-xs text-red-400 text-center font-medium">{error}</p>}
-              <form onSubmit={handleLogin} className="space-y-3">
-                <input type="text" placeholder="Usuario" value={inputUser} onChange={e=>setInputUser(e.target.value)} autoCapitalize="none" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"/>
-                <input type="password" placeholder="Contraseña" value={inputPass} onChange={e=>setInputPass(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"/>
-                <button className="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-2.5 rounded-xl text-sm text-white">Ingresar</button>
-              </form>
-            </div>
-          </div>
-        );
-      }
-
-      // FORMULARIO TOMAR PEDIDO
-      if (clienteSeleccionado) {
-        const totalActual = itemsPedido.reduce((acc, i) => acc + i.subtotal, 0);
-        return (
-          <div className="max-w-md mx-auto p-4 space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <div>
-                <h2 className="font-bold text-indigo-400 text-sm">{pedidoEditandoId ? 'Modificar Pedido' : 'Nuevo Pedido'}</h2>
-                <p className="text-xs text-white">{clienteSeleccionado.nombre}</p>
-              </div>
-              <button onClick={() => { setClienteSeleccionado(null); setPedidoEditandoId(null); setSugerencias([]); }} className="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Volver</button>
-            </div>
-
-            <form onSubmit={agregarProducto} className="bg-slate-800 p-3 rounded-xl space-y-2 border border-slate-700 relative">
-              <div className="relative">
-                <input type="text" placeholder="Escribe el producto (ej: tira...)" value={prodDesc} onChange={handleInputProdChange} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                
-                {sugerencias.length > 0 && (
-                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                    {sugerencias.map(art => (
-                      <div key={art.id} onClick={() => seleccionarSugerencia(art)} className={`p-2.5 text-xs flex justify-between items-center cursor-pointer border-b border-slate-700/50 hover:bg-slate-700 ${!art.disponible ? 'opacity-50 bg-slate-900' : ''}`}>
-                        <div>
-                          <span className="font-bold text-white">{art.nombre}</span>
-                          {!art.disponible && <span className="text-[10px] text-red-400 ml-2 font-bold">(SIN STOCK)</span>}
-                        </div>
-                        <span className="text-emerald-400 font-bold">${art.precio}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <input type="number" placeholder="Cant." value={prodCant} onChange={e=>setProdCant(e.target.value)} className="w-1/3 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                <input type="number" placeholder="Precio ($)" value={prodPrecio} onChange={e=>setProdPrecio(e.target.value)} className="w-2/3 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-              </div>
-              <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">Agregar Producto</button>
-            </form>
-
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-400">Detalle del Pedido:</h4>
-              {itemsPedido.map(item => (
-                <div key={item.id} className="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex justify-between items-center text-xs">
-                  <div>
-                    <div className="font-bold text-white">{item.cantidad}x {item.descripcion}</div>
-                    <div className="text-slate-400">${item.precio} c/u = <span className="text-indigo-300">${item.subtotal}</span></div>
-                  </div>
-                  <button onClick={() => eliminarItemPedido(item.id)} className="text-red-400 text-xs px-2 py-1">Eliminar</button>
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center font-bold text-sm">
-              <span>TOTAL:</span>
-              <span className="text-emerald-400">${totalActual}</span>
-            </div>
-
-            <button onClick={guardarOActualizarPedido} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-3 rounded-xl text-white">
-              {pedidoEditandoId ? 'Guardar Cambios' : 'Confirmar Pedido'}
-            </button>
-          </div>
-        );
-      }
-
-      const pedidosFiltrados = pedidos.filter(p => {
-        if (!usuarioActual.esAdmin) return p.vendedorId === usuarioActual.id;
-        if (vendedorFiltroId === 'todos') return true;
-        return p.vendedorId === Number(vendedorFiltroId);
-      });
-
-      const cierresFiltrados = historialDias.filter(h => {
-        if (!usuarioActual.esAdmin) return h.vendedorId === usuarioActual.id;
-        if (vendedorFiltroId === 'todos') return true;
-        return h.vendedorId === Number(vendedorFiltroId);
-      });
-
-      const clientesFiltrados = clientes.filter(c => 
-        c.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        c.direccion.toLowerCase().includes(busqueda.toLowerCase()) ||
-        c.localidad.toLowerCase().includes(busqueda.toLowerCase())
-      );
-
-      return (
-        <div className="max-w-md mx-auto p-4 space-y-4">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-            <div>
-              <h2 className="font-bold text-white">{usuarioActual.nombre}</h2>
-              <span className="text-xs text-indigo-400 font-bold">{usuarioActual.esAdmin ? 'Administrador General' : 'Vendedor'}</span>
-            </div>
-            <button onClick={() => setUsuarioActual(null)} className="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Salir</button>
-          </div>
-
-          <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs overflow-x-auto gap-1">
-            <button onClick={() => setVista('clientes')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'clientes' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Clientes ({clientes.length})</button>
-            <button onClick={() => setVista('pedidos')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'pedidos' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Día ({pedidosFiltrados.length})</button>
-            <button onClick={() => setVista('historial')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'historial' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Historial</button>
-            
-            {usuarioActual.esAdmin && (
-              <>
-                <button onClick={() => setVista('vendedores')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'vendedores' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Vendedores</button>
-                <button onClick={() => setVista('catalogo')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'catalogo' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Artículos</button>
-                <button onClick={() => setVista('finanzas')} className={`px-3 py-2 rounded-lg font-bold whitespace-nowrap ${vista === 'finanzas' ? 'bg-emerald-600 text-white' : 'text-emerald-400'}`}>Ganancias 💵</button>
-              </>
-            )}
-            <button onClick={() => setVista('respaldo')} className={`px-2 py-2 rounded-lg font-bold ${vista === 'respaldo' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>⚙️</button>
-          </div>
-
-          {/* VISTA CLIENTES */}
-          {vista === 'clientes' && (
-            <div className="space-y-4">
-              <h3 className="font-bold text-indigo-400 text-sm">Nuevo Cliente</h3>
-              <form onSubmit={guardarCliente} className="bg-slate-800 p-3.5 rounded-xl space-y-2 border border-slate-700">
-                <input type="text" placeholder="Nombre / Razón Social" value={nombreCli} onChange={e=>setNombreCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                <input type="text" placeholder="Dirección" value={dirCli} onChange={e=>setDirCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                <input type="text" placeholder="Localidad" value={locCli} onChange={e=>setLocCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">Guardar Cliente</button>
-              </form>
-
-              <div className="space-y-2">
-                <h4 className="text-xs font-bold text-slate-400">Buscar Cliente:</h4>
-                <input type="text" placeholder="Nombre, localidad..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} className="w-full bg-slate-800 text-xs p-2.5 rounded-xl border border-slate-700 text-white"/>
-
-                <div className="space-y-2 pt-1">
-                  {clientesFiltrados.map(c => (
-                    <div key={c.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
-                      <div>
-                        <div className="font-bold text-xs text-white">{c.nombre}</div>
-                        <div className="text-[11px] text-slate-400">📍 {c.direccion} - <strong className="text-indigo-300">{c.localidad}</strong></div>
-                      </div>
-                      <div className="flex gap-2 pt-1">
-                        <button onClick={() => iniciarNuevoPedido(c)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-[11px] font-bold py-1.5 rounded-lg text-white">
-                          + Tomar Pedido
-                        </button>
-                        <button onClick={() => eliminarCliente(c.id)} className="bg-red-500/20 text-red-400 text-[11px] px-2.5 py-1.5 rounded-lg border border-red-500/30">
-                          Eliminar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* VISTA DÍA ACTIVO */}
-          {vista === 'pedidos' && (
-            <div className="space-y-4">
-              {usuarioActual.esAdmin && (
-                <div className="bg-slate-800 p-2.5 rounded-xl border border-slate-700 text-xs flex justify-between items-center">
-                  <span className="font-bold text-slate-300">Supervisar Vendedor:</span>
-                  <select value={vendedorFiltroId} onChange={e=>setVendedorFiltroId(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white">
-                    <option value="todos">Todos los vendedores</option>
-                    {vendedores.filter(v => !v.esAdmin).map(v => (
-                      <option key={v.id} value={v.id}>{v.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {!usuarioActual.esAdmin && (
-                <button onClick={realizarCierreDeDia} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-2.5 rounded-lg text-white">
-                  🔒 Cierre de Día / Iniciar Nuevo Recorrido
-                </button>
-              )}
-
-              <div className="space-y-2">
-                <h4 className="text-xs font-bold text-slate-400">Pedidos del Recorrido:</h4>
-                {pedidosFiltrados.length === 0 ? (
-                  <div className="text-center text-xs text-slate-500 py-6">No hay pedidos tomados en el recorrido.</div>
-                ) : (
-                  pedidosFiltrados.map(p => (
-                    <div key={p.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-bold text-xs text-white">{p.cliente.nombre}</div>
-                          <div className="text-[10px] text-slate-400">{p.nroBoleta} - {p.fecha} ({p.vendedorNombre})</div>
-                        </div>
-                        <span className="font-bold text-emerald-400 text-xs">${p.total}</span>
-                      </div>
-
-                      <div className="text-[11px] text-slate-300 bg-slate-900/50 p-2 rounded-lg space-y-0.5">
-                        {p.items.map((it, idx) => (
-                          <div key={idx} className="flex justify-between">
-                            <span>{it.cantidad}x {it.descripcion}</span>
-                            <span>${it.subtotal}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="flex gap-2 pt-1">
-                        <button onClick={() => editarPedidoExistente(p)} className="flex-1 bg-amber-600/20 text-amber-400 text-[11px] font-bold py-1.5 rounded-lg border border-amber-500/30">
-                          ✏️ Modificar
-                        </button>
-                        <button onClick={() => cancelarPedido(p.id)} className="bg-red-500/20 text-red-400 text-[11px] px-3 py-1.5 rounded-lg border border-red-500/30">
-                          ❌ Cancelar
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* VISTA HISTORIAL */}
-          {vista === 'historial' && (
-            <div className="space-y-4">
-              <h3 className="font-bold text-indigo-400 text-sm">Historial de Recorridos Cerrados</h3>
-              {cierresFiltrados.length === 0 ? (
-                <div className="text-center text-xs text-slate-500 py-6">No hay cierres registrados.</div>
-              ) : (
-                cierresFiltrados.map(c => (
-                  <div key={c.id} className="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="font-bold text-xs text-white">Cierre: {c.fechaCierre}</div>
-                        <div className="text-[10px] text-slate-400">Vendedor: {c.vendedorNombre} ({c.pedidos.length} Pedidos)</div>
-                      </div>
-                      <span className="text-sm font-bold text-emerald-400">${c.totalVendido}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* VISTA GESTIÓN DE VENDEDORES Y COMISIONES (ADMIN) */}
-          {vista === 'vendedores' && usuarioActual.esAdmin && (
-            <div className="space-y-4">
-              <h3 className="font-bold text-indigo-400 text-sm">{vendedorEditandoId ? 'Editar Vendedor' : 'Alta de Vendedor'}</h3>
-              <form onSubmit={guardarVendedor} className="bg-slate-800 p-3.5 rounded-xl space-y-2 border border-slate-700">
-                <input type="text" placeholder="Nombre Completo" value={nuevoNombre} onChange={e=>setNuevoNombre(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                <div className="flex gap-2">
-                  <input type="text" placeholder="Usuario" value={nuevoUser} onChange={e=>setNuevoUser(e.target.value)} autoCapitalize="none" className="w-1/2 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                  <input type="text" placeholder="Contraseña" value={nuevaClave} onChange={e=>setNuevaClave(e.target.value)} className="w-1/2 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                </div>
-                
-                <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/80 space-y-1.5">
-                  <div className="text-[11px] font-bold text-amber-400">Comisiones Asignadas:</div>
-                  <div className="flex gap-2">
-                    <div className="w-1/2">
-                      <label className="text-[10px] text-slate-400">Comisión Vendedor %</label>
-                      <input type="number" value={comisionVend} onChange={e=>setComisionVend(e.target.value)} className="w-full bg-slate-900 text-xs p-2 rounded-lg border border-slate-700 text-white"/>
-                    </div>
-                    <div className="w-1/2">
-                      <label className="text-[10px] text-slate-400">Comisión Repartidor %</label>
-                      <input type="number" value={comisionRep} onChange={e=>setComisionRep(e.target.value)} className="w-full bg-slate-900 text-xs p-2 rounded-lg border border-slate-700 text-white"/>
-                    </div>
-                  </div>
-                </div>
-
-                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">
-                  {vendedorEditandoId ? 'Guardar Cambios' : '+ Crear Nuevo Vendedor'}
-                </button>
-              </form>
-
-              <div className="space-y-2">
-                <h4 className="text-xs font-bold text-slate-400">Listado de Vendedores:</h4>
-                {vendedores.map(v => (
-                  <div key={v.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center text-xs">
-                    <div>
-                      <div className="font-bold text-white">{v.nombre} {v.esAdmin && <span className="text-[10px] text-amber-400 font-bold">(Admin)</span>}</div>
-                      <div className="text-[10px] text-slate-400">User: <strong className="text-slate-200">{v.usuario}</strong> | Clave: <strong className="text-slate-200">{v.clave}</strong></div>
-                      {!v.esAdmin && (
-                        <div className="text-[10px] text-emerald-400 mt-0.5">
-                          Vend: {v.comisionVendedor || 5}% | Rep: {v.comisionRepartidor || 9}%
-                        </div>
-                      )}
-                    </div>
-                    {!v.esAdmin && (
-                      <div className="flex gap-1">
-                        <button onClick={() => editarVendedor(v)} className="bg-amber-500/20 text-amber-300 text-[10px] px-2 py-1.5 rounded-lg border border-amber-500/30">
-                          Editar
-                        </button>
-                        <button onClick={() => eliminarVendedor(v.id)} className="bg-red-500/20 text-red-400 text-[10px] px-2 py-1.5 rounded-lg border border-red-500/30">
-                          Eliminar
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* VISTA CATÁLOGO CON COSTOS Y MARGEN (ADMIN) */}
-          {vista === 'catalogo' && usuarioActual.esAdmin && (
-            <div className="space-y-4">
-              <h3 className="font-bold text-indigo-400 text-sm">Crear Artículo con Costo y Margen</h3>
-              <form onSubmit={crearArticuloCatalogo} className="bg-slate-800 p-3.5 rounded-xl space-y-2 border border-slate-700">
-                <input type="text" placeholder="Nombre del artículo (ej: Tira de Pilas)" value={artNombre} onChange={e=>setArtNombre(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                <div className="flex gap-2">
-                  <div className="w-1/2">
-                    <label className="text-[10px] text-slate-400">Costo ($)</label>
-                    <input type="number" placeholder="Ej: 1200" value={artCosto} onChange={e=>setArtCosto(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                  </div>
-                  <div className="w-1/2">
-                    <label className="text-[10px] text-slate-400">Margen %</label>
-                    <input type="number" placeholder="Ej: 25" value={artMargen} onChange={e=>setArtMargen(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                  </div>
-                </div>
-                {artCosto && artMargen && (
-                  <div className="text-[11px] text-emerald-400 font-bold text-center bg-slate-900/50 py-1.5 rounded-lg">
-                    Precio Final de Venta: ${Math.round(Number(artCosto) * (1 + (Number(artMargen)/100)))}
-                  </div>
-                )}
-                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">+ Guardar Artículo</button>
-              </form>
-
-              <div className="space-y-2">
-                <h4 className="text-xs font-bold text-slate-400">Catálogo (Solo Visible por Administradores):</h4>
-                {catalogo.map(art => (
-                  <div key={art.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center text-xs">
-                    <div>
-                      <div className="font-bold text-white">{art.nombre}</div>
-                      <div className="text-[10px] text-slate-400">
-                        Costo: <strong className="text-slate-200">${art.costo || 0}</strong> | Margen: <strong className="text-amber-300">+{art.margen || 25}%</strong>
-                      </div>
-                      <div className="text-emerald-400 font-bold">Precio Venta: ${art.precio}</div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => toggleDisponibilidadArticulo(art.id)} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border ${art.disponible ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
-                        {art.disponible ? 'Disponible' : 'Agotado'}
-                      </button>
-                      <button onClick={() => eliminarArticuloCatalogo(art.id)} className="text-red-400 text-xs px-1">✕</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* VISTA REPORTES FINANCIEROS Y PDF (ADMIN) */}
-          {vista === 'finanzas' && usuarioActual.esAdmin && (
-            <div className="space-y-4">
-              <h3 className="font-bold text-emerald-400 text-sm">💵 Ganancia Neta & Comisiones</h3>
-              
-              <div className="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-3">
-                <p className="text-xs text-slate-300">
-                  Genera un PDF con el cálculo exacto descontando el costo del artículo, la comisión del vendedor y la del repartidor.
-                </p>
-                
-                <div className="flex justify-between items-center bg-slate-900 p-2 rounded-lg text-xs">
-                  <span className="text-slate-400">Filtrar Vendedor:</span>
-                  <select value={vendedorFiltroId} onChange={e=>setVendedorFiltroId(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-xs text-white">
-                    <option value="todos">Todos los vendedores</option>
-                    {vendedores.filter(v => !v.esAdmin).map(v => (
-                      <option key={v.id} value={v.id}>{v.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <button onClick={generarPDFGananciaNeta} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-3 rounded-xl text-white shadow-lg">
-                  📄 Descargar PDF Ganancia Neta & Consolidado
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* VISTA RESPALDO */}
-          {vista === 'respaldo' && (
-            <div className="space-y-4">
-              <h3 className="font-bold text-indigo-400 text-sm">⚙️ Respaldos de Memoria</h3>
-              <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3">
-                <button onClick={exportarCopia} className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">
-                  📥 Descargar Copia Completa (JSON)
-                </button>
-                <div className="border-t border-slate-700 pt-3">
-                  <label className="block text-xs text-slate-400 mb-1">Restaurar Copia de Seguridad:</label>
-                  <input type="file" accept=".json" onChange={importarCopia} className="w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-slate-700 file:text-white"/>
-                </div>
-              </div>
-            </div>
-          )}
+<body>
+
+  <div class="header">
+    <h1 id="app-title">Sistema de Ventas</h1>
+    <div class="user-badge" id="current-user-display">Sesión no iniciada</div>
+  </div>
+
+  <div class="container">
+    <div id="sec-login" class="card">
+      <h2>Iniciar Sesión</h2>
+      <div class="form-group" style="margin-top:1rem;">
+        <label>Usuario</label>
+        <input type="text" id="login-user" placeholder="Ej: daniel, emilce...">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="login-pass">
+      </div>
+      <button class="btn" onclick="login()">Ingresar</button>
+    </div>
+
+    <div id="sec-clientes" class="hidden">
+      <div class="card">
+        <h3>Registrar / Modificar Cliente</h3>
+        <input type="hidden" id="cli-id">
+        <div class="form-group" style="margin-top:0.5rem;">
+          <input type="text" id="cli-nombre" placeholder="Nombre completo">
         </div>
-      );
+        <div class="form-group">
+          <input type="text" id="cli-direccion" placeholder="Dirección">
+        </div>
+        <div class="form-group">
+          <input type="text" id="cli-localidad" placeholder="Localidad">
+        </div>
+        <button class="btn" onclick="guardarCliente()">Guardar Cliente</button>
+      </div>
+
+      <div class="card">
+        <h3>Lista de Clientes</h3>
+        <input type="text" id="search-cli" placeholder="Buscar por nombre o localidad..." onkeyup="renderClientes()" style="margin:0.5rem 0;">
+        <div id="lista-clientes"></div>
+      </div>
+    </div>
+
+    <div id="sec-articulos" class="hidden">
+      <div class="card">
+        <h3>Gestión de Artículos (Admin)</h3>
+        <input type="hidden" id="art-id">
+        <div class="form-group" style="margin-top:0.5rem;">
+          <label>Nombre del Artículo</label>
+          <input type="text" id="art-nombre">
+        </div>
+        <div class="form-group">
+          <label>Costo ($)</label>
+          <input type="number" id="art-costo" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Precio Venta ($)</label>
+          <input type="number" id="art-precio" step="0.01">
+        </div>
+        <button class="btn" onclick="guardarArticulo()">Guardar / Modificar Artículo</button>
+        <button class="btn btn-warning hidden" id="btn-cancelar-art" onclick="limpiarFormArticulo()">Cancelar Edición</button>
+      </div>
+
+      <div class="card">
+        <h3>Catálogo Registrado</h3>
+        <div id="lista-articulos"></div>
+      </div>
+    </div>
+
+    <div id="sec-pedidos" class="hidden">
+      <div class="card">
+        <h3>Nuevo Pedido</h3>
+        <div class="form-group" style="margin-top:0.5rem;">
+          <label>Seleccionar Cliente</label>
+          <select id="ped-cliente"></select>
+        </div>
+        <div class="form-group">
+          <label>Seleccionar Artículo</label>
+          <select id="ped-articulo"></select>
+        </div>
+        <div class="form-group">
+          <label>Cantidad</label>
+          <input type="number" id="ped-cantidad" value="1" min="1">
+        </div>
+        <div class="form-group">
+          <label>Descuento por Cantidad (Máx 3%)</label>
+          <select id="ped-descuento">
+            <option value="0">0% (Sin Descuento)</option>
+            <option value="1">1% Descuento</option>
+            <option value="2">2% Descuento</option>
+            <option value="3">3% Descuento</option>
+          </select>
+        </div>
+        <button class="btn btn-success" onclick="agregarAlPedido()">Agregar a la Lista</button>
+      </div>
+
+      <div class="card">
+        <h3>Artículos del Pedido</h3>
+        <div id="carrito-items"></div>
+        <hr style="margin: 1rem 0;">
+        <button class="btn" onclick="finalizarPedido()">🔒 Finalizar y Guardar Pedido</button>
+      </div>
+    </div>
+
+    <div id="sec-balance" class="hidden">
+      <div class="card">
+        <h3>Consolidado Diario & Ganancia Neta</h3>
+        <p style="font-size:0.8rem; color:#64748b; margin-bottom:1rem;">Toma en cuenta los descuentos otorgados por los vendedores.</p>
+        <div id="reporte-balance"></div>
+        <button class="btn btn-danger" style="margin-top:1rem;" onclick="cierreDeDia()">🔒 Cierre de Día / Iniciar Nuevo Recorrido</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-tabs id="main-nav">
+    <button class="tab-btn active" onclick="cambiarTab('clientes')">👥 Clientes</button>
+    <button class="tab-btn" id="tab-art" onclick="cambiarTab('articulos')">📦 Artículos</button>
+    <button class="tab-btn" onclick="cambiarTab('pedidos')">🛒 Pedidos</button>
+    <button class="tab-btn" id="tab-bal" onclick="cambiarTab('balance')">📊 Ganancias (Admin)</button>
+    <button class="tab-btn" onclick="logout()">🚪 Salir</button>
+  </div>
+
+<script>
+  // PERSISTENCIA EN LOCALSTORAGE (Memoria Local)
+  const getMem = (key, def) => JSON.parse(localStorage.getItem('app_' + key)) || def;
+  const setMem = (key, val) => localStorage.setItem('app_' + key, JSON.stringify(val));
+
+  // DATOS INICIALES
+  let usuarios = getMem('usuarios', [
+    { user: 'daniel', pass: '00000', nombre: 'Daniel', esAdmin: true },
+    { user: 'emilce', pass: '0100', nombre: 'Emilce', esAdmin: false },
+    { user: 'kevin', pass: '0200', nombre: 'Kevin', esAdmin: false },
+    { user: 'ramona', pass: '0300', nombre: 'Ramona', esAdmin: false }
+  ]);
+  
+  let clientes = getMem('clientes', []);
+  let articulos = getMem('articulos', []);
+  let pedidos = getMem('pedidos', []);
+  let currentUser = null;
+  let carritoTemp = [];
+
+  // INICIALIZAR
+  function login() {
+    const u = document.getElementById('login-user').value.toLowerCase();
+    const p = document.getElementById('login-pass').value;
+    const found = usuarios.find(x => x.user === u && x.pass === p);
+    
+    if (found) {
+      currentUser = found;
+      document.getElementById('current-user-display').innerText = `${found.nombre} (${found.esAdmin ? 'Admin' : 'Vendedor'})`;
+      document.getElementById('sec-login').classList.add('hidden');
+      
+      // Control de pestañas según ROL
+      document.getElementById('tab-art').style.display = found.esAdmin ? 'block' : 'none';
+      document.getElementById('tab-bal').style.display = found.esAdmin ? 'block' : 'none';
+      
+      cambiarTab('clientes');
+      renderAll();
+    } else {
+      alert('Credenciales incorrectas');
+    }
+  }
+
+  function logout() {
+    currentUser = null;
+    document.getElementById('sec-login').classList.remove('hidden');
+    document.getElementById('current-user-display').innerText = 'Sesión no iniciada';
+    hideAllTabs();
+  }
+
+  function cambiarTab(tab) {
+    hideAllTabs();
+    document.getElementById('sec-' + tab).classList.remove('hidden');
+  }
+
+  function hideAllTabs() {
+    ['login', 'clientes', 'articulos', 'pedidos', 'balance'].forEach(t => {
+      const el = document.getElementById('sec-' + t);
+      if(el) el.classList.add('hidden');
+    });
+  }
+
+  // GESTIÓN DE CLIENTES
+  function guardarCliente() {
+    const id = document.getElementById('cli-id').value;
+    const nombre = document.getElementById('cli-nombre').value;
+    const dir = document.getElementById('cli-direccion').value;
+    const loc = document.getElementById('cli-localidad').value;
+
+    if (!nombre) return alert('Ingrese un nombre');
+
+    if (id) {
+      const idx = clientes.findIndex(c => c.id == id);
+      clientes[idx] = { ...clientes[idx], nombre, direccion: dir, localidad: loc };
+    } else {
+      clientes.push({ id: Date.now(), nombre, direccion: dir, localidad: loc, vendedordId: currentUser.user });
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    setMem('clientes', clientes);
+    limpiarFormCliente();
+    renderClientes();
+  }
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW error:', err));
+  function limpiarFormCliente() {
+    document.getElementById('cli-id').value = '';
+    document.getElementById('cli-nombre').value = '';
+    document.getElementById('cli-direccion').value = '';
+    document.getElementById('cli-localidad').value = '';
+  }
+
+  function renderClientes() {
+    const q = document.getElementById('search-cli').value.toLowerCase();
+    const list = document.getElementById('lista-clientes');
+    list.innerHTML = '';
+
+    clientes.filter(c => c.nombre.toLowerCase().includes(q) || c.localidad.toLowerCase().includes(q)).forEach(c => {
+      list.innerHTML += `
+        <div class="list-item">
+          <div>
+            <strong>${c.nombre}</strong><br>
+            <small>${c.direccion} - ${c.localidad}</small>
+          </div>
+          <div>
+            <button class="btn btn-sm" onclick="editarCliente(${c.id})">✏️ Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="eliminarCliente(${c.id})">🗑️</button>
+          </div>
+        </div>`;
+    });
+
+    // Cargar select de pedidos
+    const sel = document.getElementById('ped-cliente');
+    sel.innerHTML = clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+  }
+
+  function editarCliente(id) {
+    const c = clientes.find(x => x.id === id);
+    document.getElementById('cli-id').value = c.id;
+    document.getElementById('cli-nombre').value = c.nombre;
+    document.getElementById('cli-direccion').value = c.direccion;
+    document.getElementById('cli-localidad').value = c.localidad;
+  }
+
+  function eliminarCliente(id) {
+    if (confirm('¿Eliminar cliente?')) {
+      clientes = clientes.filter(c => c.id !== id);
+      setMem('clientes', clientes);
+      renderClientes();
+    }
+  }
+
+  // GESTIÓN DE ARTÍCULOS (ADMIN: BORRAR Y MODIFICAR)
+  function guardarArticulo() {
+    const id = document.getElementById('art-id').value;
+    const nombre = document.getElementById('art-nombre').value;
+    const costo = parseFloat(document.getElementById('art-costo').value) || 0;
+    const precio = parseFloat(document.getElementById('art-precio').value) || 0;
+
+    if (!nombre || precio <= 0) return alert('Complete correctamente los campos del artículo');
+
+    if (id) {
+      // Modificar existente
+      const idx = articulos.findIndex(a => a.id == id);
+      articulos[idx] = { id: parseInt(id), nombre, costo, precio };
+    } else {
+      // Crear nuevo
+      articulos.push({ id: Date.now(), nombre, costo, precio });
+    }
+
+    setMem('articulos', articulos);
+    limpiarFormArticulo();
+    renderArticulos();
+  }
+
+  function limpiarFormArticulo() {
+    document.getElementById('art-id').value = '';
+    document.getElementById('art-nombre').value = '';
+    document.getElementById('art-costo').value = '';
+    document.getElementById('art-precio').value = '';
+    document.getElementById('btn-cancelar-art').classList.add('hidden');
+  }
+
+  function renderArticulos() {
+    const list = document.getElementById('lista-articulos');
+    list.innerHTML = '';
+
+    articulos.forEach(a => {
+      list.innerHTML += `
+        <div class="list-item">
+          <div>
+            <strong>${a.nombre}</strong><br>
+            <small>Costo: $${a.costo.toFixed(2)} | Venta: $${a.precio.toFixed(2)}</small>
+          </div>
+          ${currentUser.esAdmin ? `
+          <div>
+            <button class="btn btn-sm" onclick="editarArticulo(${a.id})">✏️ Modificar</button>
+            <button class="btn btn-sm btn-danger" onclick="eliminarArticulo(${a.id})">🗑️ Borrar</button>
+          </div>` : ''}
+        </div>`;
+    });
+
+    // Cargar select en Pedidos
+    const sel = document.getElementById('ped-articulo');
+    sel.innerHTML = articulos.map(a => `<option value="${a.id}">${a.nombre} ($${a.precio})</option>`).join('');
+  }
+
+  function editarArticulo(id) {
+    const a = articulos.find(x => x.id === id);
+    document.getElementById('art-id').value = a.id;
+    document.getElementById('art-nombre').value = a.nombre;
+    document.getElementById('art-costo').value = a.costo;
+    document.getElementById('art-precio').value = a.precio;
+    document.getElementById('btn-cancelar-art').classList.remove('hidden');
+  }
+
+  function eliminarArticulo(id) {
+    if (confirm('¿Eliminar artículo del catálogo?')) {
+      articulos = articulos.filter(a => a.id !== id);
+      setMem('articulos', articulos);
+      renderArticulos();
+    }
+  }
+
+  // MÓDULO DE PEDIDOS & DESCUENTOS POR CANTIDAD
+  function agregarAlPedido() {
+    const artId = document.getElementById('ped-articulo').value;
+    const cant = parseInt(document.getElementById('ped-cantidad').value) || 1;
+    const descPct = parseFloat(document.getElementById('ped-descuento').value) || 0; // Máx 3%
+
+    const art = articulos.find(a => a.id == artId);
+    if (!art) return alert('Seleccione un artículo');
+
+    const subtotalBruto = art.precio * cant;
+    const montoDescuento = subtotalBruto * (descPct / 100);
+    const subtotalNeto = subtotalBruto - montoDescuento;
+    const costoTotal = art.costo * cant;
+
+    carritoTemp.push({
+      artId: art.id,
+      nombre: art.nombre,
+      cant,
+      precioUnit: art.precio,
+      costoTotal,
+      descPct,
+      montoDescuento,
+      subtotalNeto
+    });
+
+    renderCarrito();
+  }
+
+  function renderCarrito() {
+    const container = document.getElementById('carrito-items');
+    container.innerHTML = '';
+
+    let total = 0;
+    carritoTemp.forEach((item, index) => {
+      total += item.subtotalNeto;
+      container.innerHTML += `
+        <div class="list-item">
+          <div>
+            <strong>${item.nombre} x${item.cant}</strong><br>
+            <small>Desc: ${item.descPct}% (-$${item.montoDescuento.toFixed(2)})</small>
+          </div>
+          <div>
+            <strong>$${item.subtotalNeto.toFixed(2)}</strong>
+            <button class="btn btn-sm btn-danger" onclick="carritoTemp.splice(${index},1); renderCarrito();">X</button>
+          </div>
+        </div>`;
+    });
+    container.innerHTML += `<div style="text-align:right; font-weight:bold; margin-top:1rem;">Total: $${total.toFixed(2)}</div>`;
+  }
+
+  function finalizarPedido() {
+    if (carritoTemp.length === 0) return alert('El carrito está vacío');
+    const cliId = document.getElementById('ped-cliente').value;
+    const cli = clientes.find(c => c.id == cliId);
+
+    pedidos.push({
+      id: Date.now(),
+      fecha: new Date().toISOString(),
+      vendedor: currentUser.user,
+      cliente: cli ? cli.nombre : 'General',
+      items: [...carritoTemp]
+    });
+
+    setMem('pedidos', pedidos);
+    carritoTemp = [];
+    renderCarrito();
+    alert('Pedido guardado correctamente');
+  }
+
+  // BALANCE Y GANANCIAS CON REPORTE DE DESCUENTOS (ADMIN)
+  function renderBalance() {
+    const cont = document.getElementById('reporte-balance');
+    let ventaBrutaTotal = 0;
+    let costoTotalSum = 0;
+    let descuentosOtorgados = 0;
+
+    pedidos.forEach(p => {
+      p.items.forEach(i => {
+        ventaBrutaTotal += (i.precioUnit * i.cant);
+        costoTotalSum += i.costoTotal;
+        descuentosOtorgados += i.montoDescuento;
       });
+    });
+
+    const ventaNetaReal = ventaBrutaTotal - descuentosOtorgados;
+    const gananciaNeta = ventaNetaReal - costoTotalSum;
+
+    cont.innerHTML = `
+      <div style="font-size:0.9rem; line-height:1.6;">
+        <p>Venta Total Bruta: <strong>$${ventaBrutaTotal.toFixed(2)}</strong></p>
+        <p style="color:var(--danger)">(-) Descuentos Aplicados (Cant. max 3%): <strong>-$${descuentosOtorgados.toFixed(2)}</strong></p>
+        <p><strong>(=) Venta Neta Cobrada: $${ventaNetaReal.toFixed(2)}</strong></p>
+        <p style="color:var(--danger)">(-) Costo Total Mercadería: <strong>-$${costoTotalSum.toFixed(2)}</strong></p>
+        <hr style="margin:0.5rem 0;">
+        <h3 style="color:var(--success)">(=) GANANCIA NETA REAL: $${gananciaNeta.toFixed(2)}</h3>
+      </div>
+    `;
+  }
+
+  function cierreDeDia() {
+    if (confirm('¿Desea cerrar el día actual y reiniciar los pedidos activos para el próximo recorrido?')) {
+      const historial = getMem('historial_dias', []);
+      historial.push({ fecha: new Date().toLocaleDateString(), pedidos });
+      setMem('historial_dias', historial);
+      
+      pedidos = [];
+      setMem('pedidos', []);
+      renderAll();
+      alert('Cierre finalizado exitosamente.');
     }
-  </script>
+  }
+
+  function renderAll() {
+    renderClientes();
+    renderArticulos();
+    if(currentUser && currentUser.esAdmin) renderBalance();
+  }
+</script>
 </body>
 </html>
