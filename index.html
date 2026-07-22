@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Ventas Offline</title>
+  <title>Sistema de Ventas Offline - Completo</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     :root {
@@ -12,189 +12,264 @@
       --bg: #f8fafc;
       --card-bg: #ffffff;
       --text: #1e293b;
-      --border: #e2e8f0;
+      --border: #cbd5e1;
       --danger: #ef4444;
       --success: #10b981;
       --warning: #f59e0b;
+      --accent: #6366f1;
     }
 
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
-    body { background-color: var(--bg); color: var(--text); padding-bottom: 70px; }
+    body { background-color: var(--bg); color: var(--text); padding-bottom: 80px; }
     
     .header { background: var(--primary); color: white; padding: 1rem; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .header h1 { font-size: 1.25rem; font-weight: 600; }
-    .user-badge { font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 12px; margin-top: 4px; display: inline-block; }
+    .header h1 { font-size: 1.2rem; font-weight: 700; }
+    .user-badge { font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 12px; margin-top: 4px; display: inline-block; font-weight: 500; }
 
-    .container { padding: 1rem; max-width: 600px; margin: 0 auto; }
-    .card { background: var(--card-bg); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .container { padding: 1rem; max-width: 750px; margin: 0 auto; }
+    .card { background: var(--card-bg); border-radius: 10px; padding: 1.2rem; margin-bottom: 1.2rem; border: 1px solid var(--border); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .card h2, .card h3 { color: var(--text); margin-bottom: 0.75rem; font-size: 1.1rem; }
+
+    .form-group { margin-bottom: 0.9rem; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; color: #475569; }
+    input, select, textarea { width: 100%; padding: 0.65rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; outline: none; background: #fff; }
+    input:focus, select:focus { border-color: var(--primary); }
     
-    .form-group { margin-bottom: 1rem; }
-    label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
-    input, select { width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; }
-    
-    .btn { width: 100%; padding: 0.625rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; background: var(--primary); color: white; margin-top: 0.5rem; }
+    .btn { width: 100%; padding: 0.7rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; background: var(--primary); color: white; margin-top: 0.4rem; font-size: 0.9rem; transition: background 0.2s; }
+    .btn:hover { opacity: 0.95; }
     .btn-danger { background: var(--danger); }
     .btn-warning { background: var(--warning); color: #fff; }
     .btn-success { background: var(--success); }
-    .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; width: auto; display: inline-block; }
+    .btn-accent { background: var(--accent); }
+    .btn-secondary { background: #64748b; color: white; }
+    .btn-sm { padding: 0.35rem 0.6rem; font-size: 0.78rem; width: auto; display: inline-block; margin-top: 0; }
+    .btn-group { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
 
-    .nav-tabs { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; border-top: 1px solid var(--border); z-index: 100; }
-    .tab-btn { flex: 1; padding: 0.75rem 0.25rem; border: none; background: none; font-size: 0.7rem; color: #64748b; text-align: center; }
-    .tab-btn.active { color: var(--primary); font-weight: bold; border-top: 2px solid var(--primary); }
+    .nav-tabs { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; border-top: 1px solid var(--border); z-index: 100; height: 60px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+    .tab-btn { flex: 1; padding: 0.5rem 0.2rem; border: none; background: none; font-size: 0.7rem; color: #64748b; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 500; }
+    .tab-btn.active { color: var(--primary); font-weight: 700; border-top: 3px solid var(--primary); background: #f0fdf4; }
 
-    .list-item { border-bottom: 1px solid var(--border); padding: 0.75rem 0; display: flex; justify-content: space-between; align-items: center; }
+    .list-item { border-bottom: 1px solid var(--border); padding: 0.8rem 0; display: flex; justify-content: space-between; align-items: center; }
     .list-item:last-child { border-bottom: none; }
+    .badge { background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+    .badge-success { background: #d1fae5; color: #065f46; }
     
-    .discount-badge { background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
-    .hidden { display: none; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .stat-box { background: #f1f5f9; padding: 0.8rem; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0; }
+    .stat-box .val { font-size: 1.2rem; font-weight: 700; color: var(--primary-dark); }
+    .stat-box .lbl { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
   <div class="header">
-    <h1 id="app-title">Sistema de Ventas</h1>
+    <h1 id="app-title">📱 App Ventas Offline</h1>
     <div class="user-badge" id="current-user-display">Sesión no iniciada</div>
   </div>
 
   <div class="container">
+
     <div id="sec-login" class="card">
-      <h2>Iniciar Sesión</h2>
-      <div class="form-group" style="margin-top:1rem;">
+      <h2>🔑 Iniciar Sesión</h2>
+      <p style="font-size:0.8rem; color:#64748b; margin-bottom:1rem;">Ingrese sus credenciales de vendedor o administrador.</p>
+      <div class="form-group">
         <label>Usuario</label>
-        <input type="text" id="login-user" placeholder="Ej: daniel, emilce...">
+        <input type="text" id="login-user" placeholder="Ej: daniel, emilce, sergio...">
       </div>
       <div class="form-group">
         <label>Contraseña</label>
         <input type="password" id="login-pass">
       </div>
-      <button class="btn" onclick="login()">Ingresar</button>
+      <button class="btn" onclick="login()">Ingresar al Sistema</button>
+      
+      <hr style="margin: 1.2rem 0;">
+      <label style="text-align:center;">Acceso Rápido de Prueba:</label>
+      <div class="btn-group" style="flex-wrap: wrap;">
+        <button class="btn btn-sm btn-secondary" onclick="quickLogin('daniel','00000')">Admin (Daniel)</button>
+        <button class="btn btn-sm btn-secondary" onclick="quickLogin('sergio','cero')">Admin (Sergio)</button>
+        <button class="btn btn-sm btn-secondary" onclick="quickLogin('emilce','0100')">Vend (Emilce)</button>
+        <button class="btn btn-sm btn-secondary" onclick="quickLogin('kevin','0200')">Vend (Kevin)</button>
+        <button class="btn btn-sm btn-secondary" onclick="quickLogin('ramona','0300')">Vend (Ramona)</button>
+      </div>
     </div>
 
     <div id="sec-clientes" class="hidden">
       <div class="card">
-        <h3>Registrar / Modificar Cliente</h3>
+        <h3>👤 Alta / Edición de Cliente</h3>
         <input type="hidden" id="cli-id">
-        <div class="form-group" style="margin-top:0.5rem;">
-          <input type="text" id="cli-nombre" placeholder="Nombre completo">
-        </div>
         <div class="form-group">
-          <input type="text" id="cli-direccion" placeholder="Dirección">
+          <label>Nombre y Apellido / Razon Social</label>
+          <input type="text" id="cli-nombre" placeholder="Ej: Juan Pérez">
         </div>
-        <div class="form-group">
-          <input type="text" id="cli-localidad" placeholder="Localidad">
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Dirección</label>
+            <input type="text" id="cli-direccion" placeholder="Calle 123">
+          </div>
+          <div class="form-group">
+            <label>Localidad</label>
+            <input type="text" id="cli-localidad" placeholder="Ej: Morón">
+          </div>
         </div>
-        <button class="btn" onclick="guardarCliente()">Guardar Cliente</button>
+        <button class="btn btn-success" onclick="guardarCliente()">💾 Guardar Cliente</button>
+        <button class="btn btn-secondary hidden" id="btn-cancel-cli" onclick="limpiarFormCliente()">Cancelar Edición</button>
       </div>
 
       <div class="card">
-        <h3>Lista de Clientes</h3>
-        <input type="text" id="search-cli" placeholder="Buscar por nombre o localidad..." onkeyup="renderClientes()" style="margin:0.5rem 0;">
+        <h3>📋 Lista de Clientes Guardados</h3>
+        <input type="text" id="search-cli" placeholder="🔍 Buscar por cliente o localidad..." onkeyup="renderClientes()" style="margin-bottom:0.8rem;">
         <div id="lista-clientes"></div>
       </div>
     </div>
 
     <div id="sec-articulos" class="hidden">
       <div class="card">
-        <h3>Gestión de Artículos (Admin)</h3>
+        <h3>📦 Gestión de Catálogo de Artículos</h3>
+        <p style="font-size:0.8rem; color:#64748b; margin-bottom:1rem;">Añade, modifica precio/costo o borra productos del catálogo local.</p>
         <input type="hidden" id="art-id">
-        <div class="form-group" style="margin-top:0.5rem;">
-          <label>Nombre del Artículo</label>
-          <input type="text" id="art-nombre">
-        </div>
         <div class="form-group">
-          <label>Costo ($)</label>
-          <input type="number" id="art-costo" step="0.01">
+          <label>Nombre del Producto / Artículo</label>
+          <input type="text" id="art-nombre" placeholder="Ej: Harina 1kg">
         </div>
-        <div class="form-group">
-          <label>Precio Venta ($)</label>
-          <input type="number" id="art-precio" step="0.01">
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Costo ($)</label>
+            <input type="number" id="art-costo" step="0.01" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>Precio Venta ($)</label>
+            <input type="number" id="art-precio" step="0.01" placeholder="0.00">
+          </div>
         </div>
-        <button class="btn" onclick="guardarArticulo()">Guardar / Modificar Artículo</button>
+        <button class="btn" onclick="guardarArticulo()">💾 Guardar / Modificar Artículo</button>
         <button class="btn btn-warning hidden" id="btn-cancelar-art" onclick="limpiarFormArticulo()">Cancelar Edición</button>
       </div>
 
       <div class="card">
-        <h3>Catálogo Registrado</h3>
+        <h3>🛒 Catálogo de Artículos Activos</h3>
         <div id="lista-articulos"></div>
       </div>
     </div>
 
     <div id="sec-pedidos" class="hidden">
       <div class="card">
-        <h3>Nuevo Pedido</h3>
-        <div class="form-group" style="margin-top:0.5rem;">
-          <label>Seleccionar Cliente</label>
+        <h3>🛒 Registrar Nuevo Pedido</h3>
+        <div class="form-group">
+          <label>Cliente</label>
           <select id="ped-cliente"></select>
         </div>
         <div class="form-group">
           <label>Seleccionar Artículo</label>
           <select id="ped-articulo"></select>
         </div>
-        <div class="form-group">
-          <label>Cantidad</label>
-          <input type="number" id="ped-cantidad" value="1" min="1">
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Cantidad</label>
+            <input type="number" id="ped-cantidad" value="1" min="1">
+          </div>
+          <div class="form-group">
+            <label>Desc. por Cantidad (Max 3%)</label>
+            <select id="ped-descuento">
+              <option value="0">0% (Sin Descuento)</option>
+              <option value="1">1% Descuento</option>
+              <option value="2">2% Descuento</option>
+              <option value="3">3% Descuento</option>
+            </select>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Descuento por Cantidad (Máx 3%)</label>
-          <select id="ped-descuento">
-            <option value="0">0% (Sin Descuento)</option>
-            <option value="1">1% Descuento</option>
-            <option value="2">2% Descuento</option>
-            <option value="3">3% Descuento</option>
-          </select>
-        </div>
-        <button class="btn btn-success" onclick="agregarAlPedido()">Agregar a la Lista</button>
+        <button class="btn btn-accent" onclick="agregarAlPedido()">➕ Agregar ítem al Carrito</button>
       </div>
 
       <div class="card">
-        <h3>Artículos del Pedido</h3>
+        <h3>🛍️ Ítems en el Pedido Actual</h3>
         <div id="carrito-items"></div>
         <hr style="margin: 1rem 0;">
-        <button class="btn" onclick="finalizarPedido()">🔒 Finalizar y Guardar Pedido</button>
+        <button class="btn btn-success" onclick="finalizarPedido()">🔒 Confirmar y Guardar Pedido</button>
+      </div>
+
+      <div class="card">
+        <h3>📄 Pedidos del Día Activo</h3>
+        <div id="pedidos-dia-lista"></div>
+        <div class="btn-group" style="margin-top: 1rem;">
+          <button class="btn btn-accent" onclick="exportarPDF()">📄 Exportar PDF (2 por hoja)</button>
+          <button class="btn btn-danger" onclick="cierreDeDia()">🏁 Cierre de Día / Nuevo Recorrido</button>
+        </div>
       </div>
     </div>
 
     <div id="sec-balance" class="hidden">
       <div class="card">
-        <h3>Consolidado Diario & Ganancia Neta</h3>
-        <p style="font-size:0.8rem; color:#64748b; margin-bottom:1rem;">Toma en cuenta los descuentos otorgados por los vendedores.</p>
+        <h3>📊 Balance de Ganancias Hoy (Consolidado)</h3>
+        <p style="font-size:0.8rem; color:#64748b; margin-bottom:1rem;">Muestra las ventas netas del día deduciendo los descuentos autorizados del 1% al 3%.</p>
         <div id="reporte-balance"></div>
-        <button class="btn btn-danger" style="margin-top:1rem;" onclick="cierreDeDia()">🔒 Cierre de Día / Iniciar Nuevo Recorrido</button>
+      </div>
+
+      <div class="card" id="card-admin-vendedores">
+        <h3>👥 Gestión de Vendedores (Solo Admins)</h3>
+        <div class="form-group">
+          <input type="text" id="new-user-name" placeholder="Usuario nuevo">
+          <input type="password" id="new-user-pass" placeholder="Contraseña" style="margin-top:0.3rem;">
+          <select id="new-user-role" style="margin-top:0.3rem;">
+            <option value="false">Vendedor</option>
+            <option value="true">Administrador</option>
+          </select>
+          <button class="btn btn-sm btn-accent" style="width:100%; margin-top:0.5rem;" onclick="crearUsuario()">Crear Nuevo Usuario</button>
+        </div>
+        <div id="lista-vendedores"></div>
+      </div>
+
+      <div class="card">
+        <h3>📂 Historial de Recorridos y Ventas Mensuales</h3>
+        <div id="historial-cierres"></div>
       </div>
     </div>
+
   </div>
 
-  <div class="nav-tabs id="main-nav">
-    <button class="tab-btn active" onclick="cambiarTab('clientes')">👥 Clientes</button>
-    <button class="tab-btn" id="tab-art" onclick="cambiarTab('articulos')">📦 Artículos</button>
-    <button class="tab-btn" onclick="cambiarTab('pedidos')">🛒 Pedidos</button>
-    <button class="tab-btn" id="tab-bal" onclick="cambiarTab('balance')">📊 Ganancias (Admin)</button>
-    <button class="tab-btn" onclick="logout()">🚪 Salir</button>
+  <div class="nav-tabs" id="main-nav">
+    <button class="tab-btn active" id="tab-cli" onclick="cambiarTab('clientes')">👥<br>Clientes</button>
+    <button class="tab-btn" id="tab-art" onclick="cambiarTab('articulos')">📦<br>Artículos</button>
+    <button class="tab-btn" id="tab-ped" onclick="cambiarTab('pedidos')">🛒<br>Pedidos</button>
+    <button class="tab-btn" id="tab-bal" onclick="cambiarTab('balance')">📊<br>Balance/Admin</button>
+    <button class="tab-btn" onclick="logout()">🚪<br>Salir</button>
   </div>
 
 <script>
-  // PERSISTENCIA EN LOCALSTORAGE (Memoria Local)
-  const getMem = (key, def) => JSON.parse(localStorage.getItem('app_' + key)) || def;
-  const setMem = (key, val) => localStorage.setItem('app_' + key, JSON.stringify(val));
+  // PERSISTENCIA MEJORADA: Claves protegidas permanentes para evitar pérdida de datos al actualizar código
+  const getMem = (key, def) => JSON.parse(localStorage.getItem('app_persistent_' + key)) || def;
+  const setMem = (key, val) => localStorage.setItem('app_persistent_' + key, JSON.stringify(val));
 
-  // DATOS INICIALES
+  // DATOS INICIALES Y USUARIOS
   let usuarios = getMem('usuarios', [
-    { user: 'daniel', pass: '00000', nombre: 'Daniel', esAdmin: true },
+    { user: 'daniel', pass: '00000', nombre: 'Daniel (Admin)', esAdmin: true },
+    { user: 'sergio', pass: 'cero', nombre: 'Sergio (Admin)', esAdmin: true },
     { user: 'emilce', pass: '0100', nombre: 'Emilce', esAdmin: false },
     { user: 'kevin', pass: '0200', nombre: 'Kevin', esAdmin: false },
     { user: 'ramona', pass: '0300', nombre: 'Ramona', esAdmin: false }
   ]);
   
-  let clientes = getMem('clientes', []);
-  let articulos = getMem('articulos', []);
+  let clientes = getMem('clientes', [
+    { id: 1, nombre: 'Almacén Don José', direccion: 'Av. San Martín 1020', localidad: 'Morón', vendedordId: 'emilce' }
+  ]);
+  
+  let articulos = getMem('articulos', [
+    { id: 101, nombre: 'Aceite Girasol 1L', costo: 1200, precio: 1800 },
+    { id: 102, nombre: 'Fideos Tallarines 500g', costo: 450, precio: 750 },
+    { id: 103, nombre: 'Arroz Largo Fino 1kg', costo: 600, precio: 980 }
+  ]);
+
   let pedidos = getMem('pedidos', []);
+  let historialCierres = getMem('historial_dias', []);
+
   let currentUser = null;
   let carritoTemp = [];
 
-  // INICIALIZAR
+  // AUTENTICACIÓN
   function login() {
-    const u = document.getElementById('login-user').value.toLowerCase();
-    const p = document.getElementById('login-pass').value;
+    const u = document.getElementById('login-user').value.trim().toLowerCase();
+    const p = document.getElementById('login-pass').value.trim();
     const found = usuarios.find(x => x.user === u && x.pass === p);
     
     if (found) {
@@ -202,15 +277,22 @@
       document.getElementById('current-user-display').innerText = `${found.nombre} (${found.esAdmin ? 'Admin' : 'Vendedor'})`;
       document.getElementById('sec-login').classList.add('hidden');
       
-      // Control de pestañas según ROL
-      document.getElementById('tab-art').style.display = found.esAdmin ? 'block' : 'none';
-      document.getElementById('tab-bal').style.display = found.esAdmin ? 'block' : 'none';
-      
+      // Control de visibilidad según ROL
+      document.getElementById('tab-art').style.display = found.esAdmin ? 'flex' : 'none';
+      document.getElementById('tab-bal').style.display = found.esAdmin ? 'flex' : 'none';
+      document.getElementById('card-admin-vendedores').style.display = found.esAdmin ? 'block' : 'none';
+
       cambiarTab('clientes');
       renderAll();
     } else {
-      alert('Credenciales incorrectas');
+      alert('Usuario o contraseña incorrectos.');
     }
+  }
+
+  function quickLogin(u, p) {
+    document.getElementById('login-user').value = u;
+    document.getElementById('login-pass').value = p;
+    login();
   }
 
   function logout() {
@@ -221,8 +303,16 @@
   }
 
   function cambiarTab(tab) {
+    if(!currentUser) return;
     hideAllTabs();
     document.getElementById('sec-' + tab).classList.remove('hidden');
+    
+    // Marcar botón activo
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const activeBtn = document.getElementById('tab-' + tab.substring(0,3));
+    if(activeBtn) activeBtn.classList.add('active');
+
+    renderAll();
   }
 
   function hideAllTabs() {
@@ -232,14 +322,14 @@
     });
   }
 
-  // GESTIÓN DE CLIENTES
+  // CLIENTES
   function guardarCliente() {
     const id = document.getElementById('cli-id').value;
-    const nombre = document.getElementById('cli-nombre').value;
-    const dir = document.getElementById('cli-direccion').value;
-    const loc = document.getElementById('cli-localidad').value;
+    const nombre = document.getElementById('cli-nombre').value.trim();
+    const dir = document.getElementById('cli-direccion').value.trim();
+    const loc = document.getElementById('cli-localidad').value.trim();
 
-    if (!nombre) return alert('Ingrese un nombre');
+    if (!nombre) return alert('El nombre del cliente es obligatorio.');
 
     if (id) {
       const idx = clientes.findIndex(c => c.id == id);
@@ -258,6 +348,7 @@
     document.getElementById('cli-nombre').value = '';
     document.getElementById('cli-direccion').value = '';
     document.getElementById('cli-localidad').value = '';
+    document.getElementById('btn-cancel-cli').classList.add('hidden');
   }
 
   function renderClientes() {
@@ -265,23 +356,30 @@
     const list = document.getElementById('lista-clientes');
     list.innerHTML = '';
 
-    clientes.filter(c => c.nombre.toLowerCase().includes(q) || c.localidad.toLowerCase().includes(q)).forEach(c => {
+    const filtrados = clientes.filter(c => c.nombre.toLowerCase().includes(q) || c.localidad.toLowerCase().includes(q));
+
+    if(filtrados.length === 0) {
+      list.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:1rem;">No se encontraron clientes.</p>';
+      return;
+    }
+
+    filtrados.forEach(c => {
       list.innerHTML += `
         <div class="list-item">
           <div>
             <strong>${c.nombre}</strong><br>
-            <small>${c.direccion} - ${c.localidad}</small>
+            <small style="color:#64748b;">${c.direccion || 'Sin direc.'} - ${c.localidad || 'Sin loc.'}</small>
           </div>
           <div>
-            <button class="btn btn-sm" onclick="editarCliente(${c.id})">✏️ Edit</button>
+            <button class="btn btn-sm btn-warning" onclick="editarCliente(${c.id})">✏️</button>
             <button class="btn btn-sm btn-danger" onclick="eliminarCliente(${c.id})">🗑️</button>
           </div>
         </div>`;
     });
 
-    // Cargar select de pedidos
+    // Cargar selector en Pedidos
     const sel = document.getElementById('ped-cliente');
-    sel.innerHTML = clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+    sel.innerHTML = clientes.map(c => `<option value="${c.id}">${c.nombre} (${c.localidad})</option>`).join('');
   }
 
   function editarCliente(id) {
@@ -290,31 +388,30 @@
     document.getElementById('cli-nombre').value = c.nombre;
     document.getElementById('cli-direccion').value = c.direccion;
     document.getElementById('cli-localidad').value = c.localidad;
+    document.getElementById('btn-cancel-cli').classList.remove('hidden');
   }
 
   function eliminarCliente(id) {
-    if (confirm('¿Eliminar cliente?')) {
+    if (confirm('¿Confirma eliminar este cliente?')) {
       clientes = clientes.filter(c => c.id !== id);
       setMem('clientes', clientes);
       renderClientes();
     }
   }
 
-  // GESTIÓN DE ARTÍCULOS (ADMIN: BORRAR Y MODIFICAR)
+  // ARTÍCULOS (ADMIN: ALTA, BORRADO Y MODIFICACIÓN)
   function guardarArticulo() {
     const id = document.getElementById('art-id').value;
-    const nombre = document.getElementById('art-nombre').value;
+    const nombre = document.getElementById('art-nombre').value.trim();
     const costo = parseFloat(document.getElementById('art-costo').value) || 0;
     const precio = parseFloat(document.getElementById('art-precio').value) || 0;
 
-    if (!nombre || precio <= 0) return alert('Complete correctamente los campos del artículo');
+    if (!nombre || precio <= 0) return alert('Ingrese un nombre y un precio válido.');
 
     if (id) {
-      // Modificar existente
       const idx = articulos.findIndex(a => a.id == id);
       articulos[idx] = { id: parseInt(id), nombre, costo, precio };
     } else {
-      // Crear nuevo
       articulos.push({ id: Date.now(), nombre, costo, precio });
     }
 
@@ -340,19 +437,18 @@
         <div class="list-item">
           <div>
             <strong>${a.nombre}</strong><br>
-            <small>Costo: $${a.costo.toFixed(2)} | Venta: $${a.precio.toFixed(2)}</small>
+            <small style="color:#64748b;">Costo: $${a.costo.toFixed(2)} | Venta: <strong>$${a.precio.toFixed(2)}</strong></small>
           </div>
-          ${currentUser.esAdmin ? `
+          ${currentUser && currentUser.esAdmin ? `
           <div>
-            <button class="btn btn-sm" onclick="editarArticulo(${a.id})">✏️ Modificar</button>
+            <button class="btn btn-sm btn-warning" onclick="editarArticulo(${a.id})">✏️ Modificar</button>
             <button class="btn btn-sm btn-danger" onclick="eliminarArticulo(${a.id})">🗑️ Borrar</button>
           </div>` : ''}
         </div>`;
     });
 
-    // Cargar select en Pedidos
     const sel = document.getElementById('ped-articulo');
-    sel.innerHTML = articulos.map(a => `<option value="${a.id}">${a.nombre} ($${a.precio})</option>`).join('');
+    sel.innerHTML = articulos.map(a => `<option value="${a.id}">${a.nombre} - $${a.precio}</option>`).join('');
   }
 
   function editarArticulo(id) {
@@ -365,21 +461,21 @@
   }
 
   function eliminarArticulo(id) {
-    if (confirm('¿Eliminar artículo del catálogo?')) {
+    if (confirm('¿Desea borrar permanentemente este artículo del catálogo?')) {
       articulos = articulos.filter(a => a.id !== id);
       setMem('articulos', articulos);
       renderArticulos();
     }
   }
 
-  // MÓDULO DE PEDIDOS & DESCUENTOS POR CANTIDAD
+  // PEDIDOS Y DESCUENTOS POR CANTIDAD (MÁXIMO 3%)
   function agregarAlPedido() {
     const artId = document.getElementById('ped-articulo').value;
     const cant = parseInt(document.getElementById('ped-cantidad').value) || 1;
-    const descPct = parseFloat(document.getElementById('ped-descuento').value) || 0; // Máx 3%
+    const descPct = parseFloat(document.getElementById('ped-descuento').value) || 0;
 
     const art = articulos.find(a => a.id == artId);
-    if (!art) return alert('Seleccione un artículo');
+    if (!art) return alert('Seleccione un artículo.');
 
     const subtotalBruto = art.precio * cant;
     const montoDescuento = subtotalBruto * (descPct / 100);
@@ -404,6 +500,11 @@
     const container = document.getElementById('carrito-items');
     container.innerHTML = '';
 
+    if(carritoTemp.length === 0) {
+      container.innerHTML = '<p style="text-align:center; color:#94a3b8;">Carrito vacío.</p>';
+      return;
+    }
+
     let total = 0;
     carritoTemp.forEach((item, index) => {
       total += item.subtotalNeto;
@@ -411,37 +512,77 @@
         <div class="list-item">
           <div>
             <strong>${item.nombre} x${item.cant}</strong><br>
-            <small>Desc: ${item.descPct}% (-$${item.montoDescuento.toFixed(2)})</small>
+            <small style="color:#64748b;">$${item.precioUnit} c/u ${item.descPct > 0 ? `| Desc: ${item.descPct}% (-$${item.montoDescuento.toFixed(2)})` : ''}</small>
           </div>
           <div>
-            <strong>$${item.subtotalNeto.toFixed(2)}</strong>
+            <strong style="margin-right:8px;">$${item.subtotalNeto.toFixed(2)}</strong>
             <button class="btn btn-sm btn-danger" onclick="carritoTemp.splice(${index},1); renderCarrito();">X</button>
           </div>
         </div>`;
     });
-    container.innerHTML += `<div style="text-align:right; font-weight:bold; margin-top:1rem;">Total: $${total.toFixed(2)}</div>`;
+    container.innerHTML += `<div style="text-align:right; font-weight:bold; margin-top:0.8rem; font-size:1.1rem; color:var(--primary-dark);">Total Neto: $${total.toFixed(2)}</div>`;
   }
 
   function finalizarPedido() {
-    if (carritoTemp.length === 0) return alert('El carrito está vacío');
+    if (carritoTemp.length === 0) return alert('Agregue artículos al pedido primero.');
     const cliId = document.getElementById('ped-cliente').value;
     const cli = clientes.find(c => c.id == cliId);
 
-    pedidos.push({
+    const nuevoPedido = {
       id: Date.now(),
-      fecha: new Date().toISOString(),
+      fecha: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
       vendedor: currentUser.user,
-      cliente: cli ? cli.nombre : 'General',
+      clienteNombre: cli ? cli.nombre : 'Cliente General',
+      clienteDireccion: cli ? cli.direccion : '-',
+      clienteLocalidad: cli ? cli.localidad : '-',
       items: [...carritoTemp]
-    });
+    };
 
+    pedidos.push(nuevoPedido);
     setMem('pedidos', pedidos);
     carritoTemp = [];
     renderCarrito();
-    alert('Pedido guardado correctamente');
+    renderPedidosDia();
+    alert('Pedido registrado con éxito.');
   }
 
-  // BALANCE Y GANANCIAS CON REPORTE DE DESCUENTOS (ADMIN)
+  function renderPedidosDia() {
+    const cont = document.getElementById('pedidos-dia-lista');
+    cont.innerHTML = '';
+
+    // Filtrar pedidos del día por usuario si es vendedor, o todos si es admin
+    const mipedidos = currentUser.esAdmin ? pedidos : pedidos.filter(p => p.vendedor === currentUser.user);
+
+    if(mipedidos.length === 0) {
+      cont.innerHTML = '<p style="text-align:center; color:#94a3b8;">No hay pedidos en el recorrido actual.</p>';
+      return;
+    }
+
+    mipedidos.forEach((p, idx) => {
+      let totalPed = p.items.reduce((s, x) => s + x.subtotalNeto, 0);
+      cont.innerHTML += `
+        <div class="list-item">
+          <div>
+            <strong>#${idx+1} - ${p.clienteNombre}</strong> <span class="badge">${p.fecha}</span><br>
+            <small style="color:#64748b;">${p.items.length} productos | Vendedor: ${p.vendedor}</small>
+          </div>
+          <div>
+            <strong>$${totalPed.toFixed(2)}</strong>
+            <button class="btn btn-sm btn-danger" onclick="eliminarPedidoDia(${p.id})">🗑️</button>
+          </div>
+        </div>`;
+    });
+  }
+
+  function eliminarPedidoDia(id) {
+    if(confirm('¿Eliminar este pedido del día?')) {
+      pedidos = pedidos.filter(p => p.id !== id);
+      setMem('pedidos', pedidos);
+      renderPedidosDia();
+    }
+  }
+
+  // BALANCE Y GESTIÓN ADMIN
   function renderBalance() {
     const cont = document.getElementById('reporte-balance');
     let ventaBrutaTotal = 0;
@@ -460,34 +601,162 @@
     const gananciaNeta = ventaNetaReal - costoTotalSum;
 
     cont.innerHTML = `
-      <div style="font-size:0.9rem; line-height:1.6;">
-        <p>Venta Total Bruta: <strong>$${ventaBrutaTotal.toFixed(2)}</strong></p>
-        <p style="color:var(--danger)">(-) Descuentos Aplicados (Cant. max 3%): <strong>-$${descuentosOtorgados.toFixed(2)}</strong></p>
-        <p><strong>(=) Venta Neta Cobrada: $${ventaNetaReal.toFixed(2)}</strong></p>
-        <p style="color:var(--danger)">(-) Costo Total Mercadería: <strong>-$${costoTotalSum.toFixed(2)}</strong></p>
-        <hr style="margin:0.5rem 0;">
-        <h3 style="color:var(--success)">(=) GANANCIA NETA REAL: $${gananciaNeta.toFixed(2)}</h3>
-      </div>
-    `;
+      <div class="grid-2">
+        <div class="stat-box"><div class="val">$${ventaBrutaTotal.toFixed(2)}</div><div class="lbl">Ventas Brutas</div></div>
+        <div class="stat-box"><div class="val" style="color:var(--danger)">-$${descuentosOtorgados.toFixed(2)}</div><div class="lbl">Desc. (hasta 3%)</div></div>
+        <div class="stat-box"><div class="val">$${ventaNetaReal.toFixed(2)}</div><div class="lbl">Venta Neta Real</div></div>
+        <div class="stat-box"><div class="val" style="color:var(--success)">$${gananciaNeta.toFixed(2)}</div><div class="lbl">Ganancia Neta</div></div>
+      </div>`;
+
+    if(currentUser && currentUser.esAdmin) {
+      renderVendedoresAdmin();
+    }
+    renderHistorialCierres();
   }
 
-  function cierreDeDia() {
-    if (confirm('¿Desea cerrar el día actual y reiniciar los pedidos activos para el próximo recorrido?')) {
-      const historial = getMem('historial_dias', []);
-      historial.push({ fecha: new Date().toLocaleDateString(), pedidos });
-      setMem('historial_dias', historial);
-      
-      pedidos = [];
-      setMem('pedidos', []);
-      renderAll();
-      alert('Cierre finalizado exitosamente.');
+  function crearUsuario() {
+    const u = document.getElementById('new-user-name').value.trim().toLowerCase();
+    const p = document.getElementById('new-user-pass').value.trim();
+    const esAdmin = document.getElementById('new-user-role').value === 'true';
+
+    if(!u || !p) return alert('Complete nombre y contraseña');
+
+    usuarios.push({ user: u, pass: p, nombre: u.toUpperCase(), esAdmin });
+    setMem('usuarios', usuarios);
+    alert('Usuario registrado.');
+    renderVendedoresAdmin();
+  }
+
+  function renderVendedoresAdmin() {
+    const cont = document.getElementById('lista-vendedores');
+    cont.innerHTML = '';
+    usuarios.forEach(u => {
+      cont.innerHTML += `
+        <div class="list-item">
+          <div>
+            <strong>${u.nombre}</strong> (${u.user})<br>
+            <small>${u.esAdmin ? 'Administrador' : 'Vendedor'}</small>
+          </div>
+          ${u.user !== 'daniel' ? `<button class="btn btn-sm btn-danger" onclick="eliminarUsuario('${u.user}')">Borrar</button>` : ''}
+        </div>`;
+    });
+  }
+
+  function eliminarUsuario(u) {
+    if(confirm('¿Borrar usuario ' + u + '?')) {
+      usuarios = usuarios.filter(x => x.user !== u);
+      setMem('usuarios', usuarios);
+      renderVendedoresAdmin();
     }
   }
 
+  // CIERRE DE DÍA
+  function cierreDeDia() {
+    if(pedidos.length === 0) return alert('No hay pedidos en el día para cerrar.');
+    if (confirm('¿Cerrar el día actual? Los pedidos pasarán al historial almacenado.')) {
+      historialCierres.push({
+        fecha: new Date().toLocaleDateString(),
+        vendedor: currentUser.user,
+        pedidos: [...pedidos]
+      });
+      setMem('historial_dias', historialCierres);
+      pedidos = [];
+      setMem('pedidos', []);
+      renderAll();
+      alert('Cierre completado.');
+    }
+  }
+
+  function renderHistorialCierres() {
+    const cont = document.getElementById('historial-cierres');
+    cont.innerHTML = '';
+    if(historialCierres.length === 0) {
+      cont.innerHTML = '<p style="text-align:center; color:#94a3b8;">No hay cierres archivados.</p>';
+      return;
+    }
+
+    historialCierres.forEach((h, i) => {
+      let tot = h.pedidos.reduce((s, p) => s + p.items.reduce((s2, it) => s2 + it.subtotalNeto, 0), 0);
+      cont.innerHTML += `
+        <div class="list-item">
+          <div>
+            <strong>Cierre #${i+1} - ${h.fecha}</strong><br>
+            <small>Por: ${h.vendedor} | Pedidos: ${h.pedidos.length}</small>
+          </div>
+          <div><strong>$${tot.toFixed(2)}</strong></div>
+        </div>`;
+    });
+  }
+
+  // GENERADOR PDF CON DSPDF (FORMATO OPTIMIZADO PARA 2 COMPROBANTES POR HOJA)
+  function exportarPDF() {
+    if(pedidos.length === 0) return alert('No hay pedidos activos para exportar.');
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let yPos = 15;
+    let itemsEnPagina = 0;
+
+    pedidos.forEach((p, idx) => {
+      // Si ya hay 2 comprobantes en la página, creamos una nueva
+      if (itemsEnPagina >= 2) {
+        doc.addPage();
+        yPos = 15;
+        itemsEnPagina = 0;
+      }
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(`COMPROBANTE DE PEDIDO #${idx+1}`, 14, yPos);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Cliente: ${p.clienteNombre} | Direc: ${p.clienteDireccion} (${p.clienteLocalidad})`, 14, yPos + 5);
+      doc.text(`Vendedor: ${p.vendedor} | Hora: ${p.fecha}`, 14, yPos + 10);
+
+      yPos += 16;
+      doc.setFont("helvetica", "bold");
+      doc.text("Cant - Producto", 14, yPos);
+      doc.text("P.Unit", 120, yPos);
+      doc.text("Desc.", 150, yPos);
+      doc.text("Subtotal", 180, yPos);
+      doc.line(14, yPos + 2, 196, yPos + 2);
+
+      yPos += 7;
+      doc.setFont("helvetica", "normal");
+      let totalNeto = 0;
+
+      p.items.forEach(i => {
+        totalNeto += i.subtotalNeto;
+        doc.text(`${i.cant}x ${i.nombre}`, 14, yPos);
+        doc.text(`$${i.precioUnit}`, 120, yPos);
+        doc.text(`${i.descPct}%`, 150, yPos);
+        doc.text(`$${i.subtotalNeto.toFixed(2)}`, 180, yPos);
+        yPos += 6;
+      });
+
+      doc.line(14, yPos, 196, yPos);
+      doc.setFont("helvetica", "bold");
+      doc.text(`TOTAL NETO: $${totalNeto.toFixed(2)}`, 150, yPos + 6);
+
+      yPos += 20;
+      doc.setLineDashPattern([2, 2], 0);
+      doc.line(10, yPos, 200, yPos); // Línea punteada divisoria entre boletas
+      doc.setLineDashPattern([], 0);
+      yPos += 15;
+
+      itemsEnPagina++;
+    });
+
+    doc.save(`Pedidos_Dia_${new Date().toISOString().slice(0,10)}.pdf`);
+  }
+
+  // RENDER GENERAL
   function renderAll() {
     renderClientes();
     renderArticulos();
-    if(currentUser && currentUser.esAdmin) renderBalance();
+    renderCarrito();
+    renderPedidosDia();
+    renderBalance();
   }
 </script>
 </body>
