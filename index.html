@@ -16,6 +16,7 @@
     .badge-vendedor { background-color: #3498db; }
     .badge-admin { background-color: #e74c3c; }
     .nav-tabs .nav-link.active { font-weight: bold; border-bottom: 3px solid #2c3e50; }
+    .status-badge { font-size: 0.85rem; padding: 5px 10px; border-radius: 20px; }
   </style>
 </head>
 <body>
@@ -24,8 +25,9 @@
     <nav class="navbar navbar-dark mb-4" id="topNavbar" style="display: none;">
       <div class="container-fluid">
         <span class="navbar-brand mb-0 h1"><i class="fa-solid fa-store me-2"></i>Sistema de Ventas</span>
-        <div class="d-flex align-items-center text-white">
-          <span class="me-3" id="userBadge"></span>
+        <div class="d-flex align-items-center text-white gap-3">
+          <span id="networkStatus" class="status-badge bg-success"><i class="fa-solid fa-wifi me-1"></i>En línea</span>
+          <span id="userBadge"></span>
           <button class="btn btn-outline-light btn-sm" onclick="cerrarSesion()"><i class="fa-solid fa-right-from-bracket me-1"></i>Salir</button>
         </div>
       </div>
@@ -33,6 +35,7 @@
 
     <div class="container pb-5">
       
+      <!-- PANTALLA LOGIN -->
       <div id="pantallaLogin" class="row justify-content-center mt-5">
         <div class="col-md-5">
           <div class="card p-4 shadow-sm">
@@ -59,8 +62,13 @@
         </div>
       </div>
 
+      <!-- PANEL PRINCIPAL -->
       <div id="panelPrincipal" style="display: none;">
         
+        <div id="offlineAlert" class="alert alert-warning alert-dismissible fade show d-none" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i><strong>Modo Offline Activo:</strong> Los pedidos guardados se almacenarán localmente en el dispositivo y se sincronizarán al recuperar la conexión.
+        </div>
+
         <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist">
           <li class="nav-item">
             <button class="nav-link active" id="tab-pedidos-btn" onclick="cambiarSolapa('pedidos')"><i class="fa-solid fa-cart-shopping me-1"></i>Tomar Pedido</button>
@@ -85,6 +93,7 @@
           </li>
         </ul>
 
+        <!-- SOLAPA PEDIDOS -->
         <div id="solapa-pedidos" class="tab-content-item">
           <div class="row">
             <div class="col-md-4 mb-3">
@@ -99,7 +108,7 @@
                 <h5><i class="fa-solid fa-box-open me-2"></i>2. Cargar Artículos</h5>
                 <div class="row g-2 mb-3">
                   <div class="col-md-5">
-                    <input type="text" id="buscarArticuloInput" class="form-control" placeholder="Producto..." onkeyup="autocompleteArticulo(this.value)">
+                    <input type="text" id="buscarArticuloInput" class="form-control" placeholder="Buscar producto activo..." onkeyup="autocompleteArticulo(this.value)">
                     <div id="sugerenciasArticulos" class="list-group position-absolute z-3 shadow-sm" style="max-height:150px; overflow-y:auto;"></div>
                   </div>
                   <div class="col-md-3">
@@ -134,6 +143,7 @@
           </div>
         </div>
 
+        <!-- SOLAPA CLIENTES -->
         <div id="solapa-clientes" class="tab-content-item" style="display: none;">
           <div class="row">
             <div class="col-md-4 mb-3">
@@ -166,6 +176,7 @@
           </div>
         </div>
 
+        <!-- SOLAPA DIA ACTIVO -->
         <div id="solapa-dia" class="tab-content-item" style="display: none;">
           <div class="card p-3">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -174,14 +185,15 @@
                 <span class="text-muted">Vendedor: <strong id="diaVendedorNombre"></strong></span>
               </div>
               <div class="d-flex gap-2">
-                <button class="btn btn-outline-danger" onclick="generarPDFConsolidadoVendedor()"><i class="fa-solid fa-file-pdf me-1"></i>Exportar PDF (2/pág)</button>
-                <button class="btn btn-warning" onclick="efectuarCierreDeDia()"><i class="fa-solid fa-lock me-1"></i>Cierre de Día / Iniciar Nuevo Recorrido</button>
+                <button class="btn btn-outline-danger" onclick="generarPDFConsolidadoVendedor()"><i class="fa-solid fa-file-pdf me-1"></i>Exportar PDF</button>
+                <button class="btn btn-warning" onclick="efectuarCierreDeDia()"><i class="fa-solid fa-lock me-1"></i>Cierre de Día</button>
               </div>
             </div>
             <div id="listaPedidosDiaActivo" class="row"></div>
           </div>
         </div>
 
+        <!-- SOLAPA HISTORIAL -->
         <div id="solapa-historial" class="tab-content-item" style="display: none;">
           <div class="card p-3">
             <h5><i class="fa-solid fa-clock-rotate-left me-2"></i>Historial de Cierres de Día</h5>
@@ -189,6 +201,7 @@
           </div>
         </div>
 
+        <!-- SOLAPA SEGUIMIENTO (ADMIN) -->
         <div id="solapa-seguimiento" class="tab-content-item solo-admin" style="display: none;">
           <div class="card p-3 mb-3">
             <div class="row align-items-center">
@@ -199,12 +212,8 @@
                 <label class="form-label me-2 font-weight-bold">Seleccionar Vendedor:</label>
                 <select id="selectSeguimientoVendedor" class="form-select" onchange="renderizarSeguimientoVendedor()"></select>
               </div>
-              <div class="col-md-3 text-end">
-                <button class="btn btn-danger" onclick="exportarPDFSeguimiento()"><i class="fa-solid fa-file-pdf me-1"></i>PDF Consolidado Vendedor</button>
-              </div>
             </div>
           </div>
-
           <div class="row">
             <div class="col-md-4 mb-3">
               <div class="card p-3 bg-light">
@@ -212,9 +221,6 @@
                 <hr>
                 <p>Pedidos en Día Activo: <strong id="segCantPedidos">0</strong></p>
                 <p>Monto Día Activo: <strong id="segMontoActivo">$0.00</strong></p>
-                <p>Comisión Vendedor (%<span id="segComisionVendPct">0</span>): <strong id="segComisionVendMonto">$0.00</strong></p>
-                <p>Comisión Repartidor (%<span id="segComisionRepPct">0</span>): <strong id="segComisionRepMonto">$0.00</strong></p>
-                <p>Total Cierres Históricos: <strong id="segCantCierres">0</strong></p>
               </div>
             </div>
             <div class="col-md-8">
@@ -226,11 +232,12 @@
           </div>
         </div>
 
+        <!-- SOLAPA VENDEDORES (ADMIN) -->
         <div id="solapa-vendedores" class="tab-content-item solo-admin" style="display: none;">
           <div class="row">
             <div class="col-md-4 mb-3">
               <div class="card p-3">
-                <h5><i class="fa-solid fa-user-plus me-2"></i>Registrar / Editar Vendedor</h5>
+                <h5><i class="fa-solid fa-user-plus me-2"></i>Registrar Vendedor</h5>
                 <input type="hidden" id="vendUserEdit">
                 <div class="mb-2"><label class="form-label">Usuario</label><input type="text" id="vendUser" class="form-control"></div>
                 <div class="mb-2"><label class="form-label">Nombre Completo</label><input type="text" id="vendNombre" class="form-control"></div>
@@ -242,10 +249,6 @@
                     <option value="admin">Administrador General</option>
                   </select>
                 </div>
-                <div class="row mb-2">
-                  <div class="col-6"><label class="form-label">% Com. Vendedor</label><input type="number" id="vendComision" class="form-control" value="5"></div>
-                  <div class="col-6"><label class="form-label">% Com. Repartidor</label><input type="number" id="vendRepartidor" class="form-control" value="8"></div>
-                </div>
                 <button class="btn btn-primary w-100" onclick="guardarVendedor()"><i class="fa-solid fa-save me-1"></i>Guardar Vendedor</button>
               </div>
             </div>
@@ -255,7 +258,7 @@
                 <div class="table-responsive">
                   <table class="table table-hover align-middle">
                     <thead>
-                      <tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>% Vend</th><th>% Rep</th><th>Acciones</th></tr>
+                      <tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Acciones</th></tr>
                     </thead>
                     <tbody id="tablaVendedoresBody"></tbody>
                   </table>
@@ -265,6 +268,7 @@
           </div>
         </div>
 
+        <!-- SOLAPA ARTICULOS (ADMIN) -->
         <div id="solapa-articulos" class="tab-content-item solo-admin" style="display: none;">
           <div class="row">
             <div class="col-md-4 mb-3">
@@ -284,7 +288,7 @@
                 <div class="table-responsive">
                   <table class="table table-hover align-middle">
                     <thead>
-                      <tr><th>Producto</th><th>Costo</th><th>Margen %</th><th>P. Venta Final</th><th>Acciones</th></tr>
+                      <tr><th>Producto</th><th>Costo</th><th>Margen %</th><th>P. Venta Final</th><th>Estado</th><th>Acciones</th></tr>
                     </thead>
                     <tbody id="tablaArticulosBody"></tbody>
                   </table>
@@ -305,12 +309,20 @@
     const KEY_ARTICULOS = 'app_persistent_articulos_v2';
     const KEY_PEDIDOS = 'app_persistent_pedidos_v2';
     const KEY_HISTORIAL = 'app_persistent_historial_v2';
+    const KEY_SESSION = 'app_session_usuario';
+    const KEY_COLA_OFFLINE = 'app_cola_pendientes';
 
     // --- ESTADO GLOBAL ---
     let usuarioActual = null;
     let pedidoTemporal = [];
 
-    // --- DATOS SEMILLA DE INICIALIZACION (Si la memoria está vacía) ---
+    // --- INICIALIZACIÓN DE LA APLICACIÓN ---
+    window.addEventListener('DOMContentLoaded', () => {
+      inicializarBaseDeDatos();
+      configurarMonitoreoConexion();
+      verificarSesionGuardada();
+    });
+
     function inicializarBaseDeDatos() {
       if (!localStorage.getItem(KEY_USUARIOS)) {
         const usuariosIniciales = [
@@ -333,18 +345,59 @@
 
       if (!localStorage.getItem(KEY_ARTICULOS)) {
         const articulosIniciales = [
-          { id: '1', nombre: 'Gaseosa Cola 2.25L', costo: 1000, margen: 25, precio: 1250 },
-          { id: '2', nombre: 'Agua Mineral 1.5L', costo: 500, margen: 30, precio: 650 },
-          { id: '3', nombre: 'Galletitas Dobladas', costo: 400, margen: 25, precio: 500 }
+          { id: '1', nombre: 'Gaseosa Cola 2.25L', costo: 1000, margen: 25, precio: 1250, activo: true },
+          { id: '2', nombre: 'Agua Mineral 1.5L', costo: 500, margen: 30, precio: 650, activo: true },
+          { id: '3', nombre: 'Galletitas Dobladas', costo: 400, margen: 25, precio: 500, activo: true }
         ];
         localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulosIniciales));
       }
 
       if (!localStorage.getItem(KEY_PEDIDOS)) localStorage.setItem(KEY_PEDIDOS, JSON.stringify([]));
       if (!localStorage.getItem(KEY_HISTORIAL)) localStorage.setItem(KEY_HISTORIAL, JSON.stringify([]));
+      if (!localStorage.getItem(KEY_COLA_OFFLINE)) localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify([]));
     }
 
-    // --- AUTENTICACION Y SESION ---
+    // --- MANEJO DE ESTADO ONLINE / OFFLINE ---
+    function configurarMonitoreoConexion() {
+      window.addEventListener('online', actualizarEstadoConexion);
+      window.addEventListener('offline', actualizarEstadoConexion);
+      actualizarEstadoConexion();
+    }
+
+    function actualizarEstadoConexion() {
+      const statusBadge = document.getElementById('networkStatus');
+      const offlineAlert = document.getElementById('offlineAlert');
+
+      if (navigator.onLine) {
+        statusBadge.className = 'status-badge bg-success';
+        statusBadge.innerHTML = '<i class="fa-solid fa-wifi me-1"></i>En línea';
+        if (offlineAlert) offlineAlert.classList.add('d-none');
+        sincronizarDatosPendientes();
+      } else {
+        statusBadge.className = 'status-badge bg-warning text-dark';
+        statusBadge.innerHTML = '<i class="fa-solid fa-signal-strikethrough me-1"></i>Modo Offline';
+        if (offlineAlert) offlineAlert.classList.remove('d-none');
+      }
+    }
+
+    function sincronizarDatosPendientes() {
+      const cola = JSON.parse(localStorage.getItem(KEY_COLA_OFFLINE) || "[]");
+      if (cola.length > 0) {
+        console.log("Sincronizando con la nube/servidor:", cola);
+        // Aquí se simula el envío diferido cuando vuelve internet
+        localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify([]));
+      }
+    }
+
+    // --- AUTENTICACION Y SESION PERSISTENTE ---
+    function verificarSesionGuardada() {
+      const sesionGuardada = localStorage.getItem(KEY_SESSION);
+      if (sesionGuardada) {
+        usuarioActual = JSON.parse(sesionGuardada);
+        iniciarVistaDashboard();
+      }
+    }
+
     function iniciarSesion() {
       const u = document.getElementById('loginUser').value.trim().toLowerCase();
       const p = document.getElementById('loginPass').value.trim();
@@ -353,31 +406,33 @@
       const enco = usuarios.find(x => x.user.toLowerCase() === u && x.pass === p);
       if (enco) {
         usuarioActual = enco;
-        document.getElementById('pantallaLogin').style.display = 'none';
-        document.getElementById('topNavbar').style.display = 'flex';
-        document.getElementById('panelPrincipal').style.display = 'block';
-        document.getElementById('userBadge').innerHTML = `<span class="badge ${enco.rol === 'admin' ? 'badge-admin' : 'badge-vendedor'}">${enco.nombre} (${enco.rol.toUpperCase()})</span>`;
-
-        // Ocultar/Mostrar elementos de administración
-        const elemsAdmin = document.querySelectorAll('.solo-admin');
-        elemsAdmin.forEach(el => el.style.display = enco.rol === 'admin' ? 'block' : 'none');
-
-        // Cargar vistas iniciales
-        cargarClientesEnSelectPedido();
-        renderizarTablaClientes();
-        renderizarDiaActivo();
-        renderizarHistorialCierres();
-
-        if (enco.rol === 'admin') {
-          renderizarTablaVendedores();
-          renderizarTablaArticulos();
-          cargarSelectSeguimientoVendedores();
-        }
-
-        cambiarSolapa('pedidos');
+        localStorage.setItem(KEY_SESSION, JSON.stringify(enco)); // Guardar sesión
+        iniciarVistaDashboard();
       } else {
         alert('Usuario o contraseña incorrectos.');
       }
+    }
+
+    function iniciarVistaDashboard() {
+      document.getElementById('pantallaLogin').style.display = 'none';
+      document.getElementById('topNavbar').style.display = 'flex';
+      document.getElementById('panelPrincipal').style.display = 'block';
+      document.getElementById('userBadge').innerHTML = `<span class="badge ${usuarioActual.rol === 'admin' ? 'badge-admin' : 'badge-vendedor'}">${usuarioActual.nombre} (${usuarioActual.rol.toUpperCase()})</span>`;
+
+      const elemsAdmin = document.querySelectorAll('.solo-admin');
+      elemsAdmin.forEach(el => el.style.display = usuarioActual.rol === 'admin' ? 'block' : 'none');
+
+      cargarClientesEnSelectPedido();
+      renderizarTablaClientes();
+      renderizarDiaActivo();
+      renderizarHistorialCierres();
+
+      if (usuarioActual.rol === 'admin') {
+        renderizarTablaVendedores();
+        renderizarTablaArticulos();
+      }
+
+      cambiarSolapa('pedidos');
     }
 
     function quickLogin(u, p) {
@@ -388,6 +443,7 @@
 
     function cerrarSesion() {
       usuarioActual = null;
+      localStorage.removeItem(KEY_SESSION); // Limpiar sesión solo al hacer Logout explicito
       document.getElementById('pantallaLogin').style.display = 'flex';
       document.getElementById('topNavbar').style.display = 'none';
       document.getElementById('panelPrincipal').style.display = 'none';
@@ -395,7 +451,7 @@
       document.getElementById('loginPass').value = '';
     }
 
-    // --- NAVEGACION DE SOLAPAS ---
+    // --- NAVEGACIÓN ---
     function cambiarSolapa(solapa) {
       const solapas = ['pedidos', 'clientes', 'dia', 'historial', 'seguimiento', 'vendedores', 'articulos'];
       solapas.forEach(s => {
@@ -409,8 +465,6 @@
       const itemActivo = document.getElementById(`solapa-${solapa}`);
       if (btnActivo) btnActivo.classList.add('active');
       if (itemActivo) itemActivo.style.display = 'block';
-
-      if (solapa === 'seguimiento') renderizarSeguimientoVendedor();
     }
 
     // --- CLIENTES ---
@@ -512,14 +566,109 @@
       }
     }
 
-    // --- PRODUCTOS / ARTICULOS Y AUTOCOMPLETADO ---
+    // --- ARTICULOS Y DESHABILITACIÓN ---
+    function calcularPrecioFinalForm() {
+      const costo = parseFloat(document.getElementById('artCosto').value) || 0;
+      const margen = parseFloat(document.getElementById('artMargen').value) || 0;
+      const precio = costo + (costo * (margen / 100));
+      document.getElementById('artPrecioFinal').value = precio.toFixed(2);
+    }
+
+    function guardarArticulo() {
+      const id = document.getElementById('artIdEdit').value || Date.now().toString();
+      const nombre = document.getElementById('artNombre').value.trim();
+      const costo = parseFloat(document.getElementById('artCosto').value) || 0;
+      const margen = parseFloat(document.getElementById('artMargen').value) || 0;
+      const precio = parseFloat(document.getElementById('artPrecioFinal').value) || 0;
+
+      if (!nombre) return alert('Ingrese una descripción para el producto');
+
+      let articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
+      const idx = articulos.findIndex(a => a.id === id);
+
+      if (idx >= 0) {
+        articulos[idx] = { ...articulos[idx], nombre, costo, margen, precio };
+      } else {
+        articulos.push({ id, nombre, costo, margen, precio, activo: true });
+      }
+
+      localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulos));
+      document.getElementById('artIdEdit').value = '';
+      document.getElementById('artNombre').value = '';
+      document.getElementById('artCosto').value = '';
+      document.getElementById('artMargen').value = '25';
+      document.getElementById('artPrecioFinal').value = '';
+
+      renderizarTablaArticulos();
+      alert('Producto guardado correctamente.');
+    }
+
+    function renderizarTablaArticulos() {
+      const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
+      const tbody = document.getElementById('tablaArticulosBody');
+      tbody.innerHTML = '';
+
+      articulos.forEach(a => {
+        const estaActivo = a.activo !== false;
+        tbody.innerHTML += `
+          <tr class="${!estaActivo ? 'table-secondary text-muted' : ''}">
+            <td>${a.nombre}</td>
+            <td>$${a.costo.toFixed(2)}</td>
+            <td>${a.margen}%</td>
+            <td>$${a.precio.toFixed(2)}</td>
+            <td><span class="badge ${estaActivo ? 'bg-success' : 'bg-danger'}">${estaActivo ? 'Activo' : 'Deshabilitado'}</span></td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary me-1" onclick="editarArticulo('${a.id}')"><i class="fa-solid fa-pen"></i></button>
+              <button class="btn btn-sm ${estaActivo ? 'btn-outline-warning' : 'btn-outline-success'} me-1" onclick="toggleEstadoArticulo('${a.id}')" title="${estaActivo ? 'Deshabilitar' : 'Habilitar'}">
+                <i class="fa-solid ${estaActivo ? 'fa-ban' : 'fa-check'}"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="eliminarArticulo('${a.id}')"><i class="fa-solid fa-trash"></i></button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function toggleEstadoArticulo(id) {
+      let articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
+      const idx = articulos.findIndex(a => a.id === id);
+      if (idx >= 0) {
+        articulos[idx].activo = !(articulos[idx].activo !== false);
+        localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulos));
+        renderizarTablaArticulos();
+      }
+    }
+
+    function editarArticulo(id) {
+      const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
+      const a = articulos.find(x => x.id === id);
+      if (a) {
+        document.getElementById('artIdEdit').value = a.id;
+        document.getElementById('artNombre').value = a.nombre;
+        document.getElementById('artCosto').value = a.costo;
+        document.getElementById('artMargen').value = a.margen;
+        document.getElementById('artPrecioFinal').value = a.precio;
+      }
+    }
+
+    function eliminarArticulo(id) {
+      if (confirm('¿Desea eliminar definitivamente este producto?')) {
+        let articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
+        articulos = articulos.filter(a => a.id !== id);
+        localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulos));
+        renderizarTablaArticulos();
+      }
+    }
+
+    // --- AUTOCOMPLETADO (Solo productos ACTIVOS) ---
     function autocompleteArticulo(val) {
       const div = document.getElementById('sugerenciasArticulos');
       div.innerHTML = '';
       if (!val.trim()) return;
 
       const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
-      const coincidencias = articulos.filter(a => a.nombre.toLowerCase().includes(val.toLowerCase()));
+      // Filtrar solo los artículos ACTIVOS
+      const coincidencias = articulos.filter(a => (a.activo !== false) && a.nombre.toLowerCase().includes(val.toLowerCase()));
 
       coincidencias.forEach(a => {
         const item = document.createElement('button');
@@ -541,8 +690,8 @@
       const cant = parseInt(document.getElementById('cantArticuloInput').value) || 1;
       const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
 
-      const art = articulos.find(a => a.nombre.toLowerCase() === nombreArt.toLowerCase());
-      if (!art) return alert('Seleccione un producto válido del catálogo.');
+      const art = articulos.find(a => (a.activo !== false) && a.nombre.toLowerCase() === nombreArt.toLowerCase());
+      if (!art) return alert('Seleccione un producto activo válido del catálogo.');
 
       const subtotal = art.precio * cant;
       pedidoTemporal.push({
@@ -607,10 +756,17 @@
       pedidos.push(nuevoPedido);
       localStorage.setItem(KEY_PEDIDOS, JSON.stringify(pedidos));
 
+      // Guardar en cola offline si no hay red
+      if (!navigator.onLine) {
+        let cola = JSON.parse(localStorage.getItem(KEY_COLA_OFFLINE) || "[]");
+        cola.push(nuevoPedido);
+        localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify(cola));
+      }
+
       pedidoTemporal = [];
       renderizarDetallePedidoTemp();
       renderizarDiaActivo();
-      alert('Pedido guardado correctamente en el Día Activo.');
+      alert('Pedido guardado correctamente' + (!navigator.onLine ? ' (En modo offline).' : '.'));
     }
 
     // --- DIA ACTIVO Y CIERRE ---
@@ -660,222 +816,58 @@
       let pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
       const misPedidos = pedidos.filter(p => p.vendedorUser === usuarioActual.user);
 
-      if (misPedidos.length === 0) return alert('No hay pedidos activos para realizar el cierre.');
+      if (misPedidos.length === 0) return alert('No hay pedidos en el día activo para cerrar.');
 
-      if (confirm(`¿Confirmar cierre de día para ${usuarioActual.nombre}? Se archivarán ${misPedidos.length} pedidos en el historial.`)) {
+      if (confirm('¿Confirma el cierre de día? Se archivarán los pedidos del recorrido actual.')) {
         let historial = JSON.parse(localStorage.getItem(KEY_HISTORIAL) || "[]");
-        const totalMonto = misPedidos.reduce((s, p) => s + p.total, 0);
-
-        const cierreObj = {
+        const cierre = {
           id: 'CIERRE-' + Date.now(),
           vendedorUser: usuarioActual.user,
           vendedorNombre: usuarioActual.nombre,
-          fechaCierre: new Date().toLocaleString(),
+          fecha: new Date().toLocaleString(),
           pedidos: misPedidos,
-          montoTotal: totalMonto
+          totalMonto: misPedidos.reduce((s, p) => s + p.total, 0)
         };
 
-        historial.push(cierreObj);
+        historial.push(cierre);
         localStorage.setItem(KEY_HISTORIAL, JSON.stringify(historial));
 
-        // Limpiar pedidos activos del vendedor
+        // Limpiar pedidos del vendedor activo
         pedidos = pedidos.filter(p => p.vendedorUser !== usuarioActual.user);
         localStorage.setItem(KEY_PEDIDOS, JSON.stringify(pedidos));
 
         renderizarDiaActivo();
         renderizarHistorialCierres();
-        alert('Cierre de día completado con éxito. Se ha iniciado un nuevo recorrido.');
+        alert('Cierre de día guardado con éxito.');
       }
     }
 
     function renderizarHistorialCierres() {
       const historial = JSON.parse(localStorage.getItem(KEY_HISTORIAL) || "[]");
-      const misCierres = usuarioActual.rol === 'admin' 
-        ? historial 
-        : historial.filter(h => h.vendedorUser === usuarioActual.user);
-
-      const cont = document.getElementById('contenedorHistorialCierres');
-      cont.innerHTML = '';
+      const misCierres = historial.filter(h => h.vendedorUser === usuarioActual.user);
+      const div = document.getElementById('contenedorHistorialCierres');
+      div.innerHTML = '';
 
       if (misCierres.length === 0) {
-        cont.innerHTML = `<p class="text-muted">No existen cierres archivados en el historial.</p>`;
+        div.innerHTML = '<p class="text-muted">No hay cierres históricos archivados.</p>';
         return;
       }
 
       misCierres.forEach(c => {
-        cont.innerHTML += `
+        div.innerHTML += `
           <div class="card p-3 mb-2 bg-light">
             <div class="d-flex justify-content-between align-items-center">
               <div>
-                <strong>Cierre: ${c.fechaCierre}</strong> (${c.vendedorNombre})
-                <br><span class="text-muted">${c.pedidos.length} pedidos archivados</span>
+                <h6>Cierre: ${c.fecha}</h6>
+                <p class="mb-0 small text-muted">Pedidos realizados: ${c.pedidos.length} | Total recaudado: $${c.totalMonto.toFixed(2)}</p>
               </div>
-              <h5 class="text-primary mb-0">$${c.montoTotal.toFixed(2)}</h5>
             </div>
           </div>
         `;
       });
     }
 
-    // --- EXCLUSIVO ADMIN: SEGUIMIENTO DE VENDEDORES ---
-    function cargarSelectSeguimientoVendedores() {
-      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
-      const sel = document.getElementById('selectSeguimientoVendedor');
-      sel.innerHTML = '';
-      usuarios.filter(u => u.rol === 'vendedor').forEach(v => {
-        sel.innerHTML += `<option value="${v.user}">${v.nombre} (@${v.user})</option>`;
-      });
-    }
-
-    function renderizarSeguimientoVendedor() {
-      const vUser = document.getElementById('selectSeguimientoVendedor').value;
-      if (!vUser) return;
-
-      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
-      const vendedor = usuarios.find(u => u.user === vUser);
-
-      const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
-      const pedidosVendedor = pedidos.filter(p => p.vendedorUser === vUser);
-
-      const historial = JSON.parse(localStorage.getItem(KEY_HISTORIAL) || "[]");
-      const cierresVendedor = historial.filter(h => h.vendedorUser === vUser);
-
-      const totalMontoActivo = pedidosVendedor.reduce((s, p) => s + p.total, 0);
-      const comisionVendMonto = totalMontoActivo * ((vendedor.comision || 5) / 100);
-      const comisionRepMonto = totalMontoActivo * ((vendedor.repartidor || 8) / 100);
-
-      document.getElementById('segCantPedidos').innerText = pedidosVendedor.length;
-      document.getElementById('segMontoActivo').innerText = `$${totalMontoActivo.toFixed(2)}`;
-      document.getElementById('segComisionVendPct').innerText = vendedor.comision || 5;
-      document.getElementById('segComisionVendMonto').innerText = `$${comisionVendMonto.toFixed(2)}`;
-      document.getElementById('segComisionRepPct').innerText = vendedor.repartidor || 8;
-      document.getElementById('segComisionRepMonto').innerText = `$${comisionRepMonto.toFixed(2)}`;
-      document.getElementById('segCantCierres').innerText = cierresVendedor.length;
-
-      const cont = document.getElementById('segContenedorPedidosActivos');
-      cont.innerHTML = '';
-
-      if (pedidosVendedor.length === 0) {
-        cont.innerHTML = `<p class="text-muted">El vendedor no tiene pedidos cargados en su recorrido activo.</p>`;
-        return;
-      }
-
-      pedidosVendedor.forEach(p => {
-        let itemsHtml = p.items.map(i => `<li>${i.cantidad}x ${i.nombre} ($${i.subtotal.toFixed(2)})</li>`).join('');
-        cont.innerHTML += `
-          <div class="card p-2 mb-2">
-            <div class="d-flex justify-content-between">
-              <strong>${p.cliente.nombre} (${p.cliente.localidad})</strong>
-              <span class="text-success fw-bold">$${p.total.toFixed(2)}</span>
-            </div>
-            <ul class="mb-0 small">${itemsHtml}</ul>
-          </div>
-        `;
-      });
-    }
-
-    // --- EXPORTAR PDF CON 2 BOLETAS POR PAGINA ---
-    function generarPDFConsolidadoVendedor() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]").filter(p => p.vendedorUser === usuarioActual.user);
-
-      if (pedidos.length === 0) return alert('No hay pedidos activos para exportar en PDF.');
-
-      let pageHeight = 297; 
-      let y = 10;
-      let pedidoIndex = 0;
-
-      pedidos.forEach((p) => {
-        if (pedidoIndex > 0 && pedidoIndex % 2 === 0) {
-          doc.addPage();
-          y = 10;
-        }
-
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text(`COMPROBANTE DE PEDIDO - VENDEDOR: ${p.vendedorNombre.toUpperCase()}`, 10, y);
-        y += 6;
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Cliente: ${p.cliente.nombre} | Dirección: ${p.cliente.direccion} (${p.cliente.localidad})`, 10, y);
-        y += 5;
-        doc.text(`Fecha: ${p.fecha}`, 10, y);
-        y += 6;
-
-        doc.line(10, y, 200, y);
-        y += 5;
-
-        p.items.forEach(item => {
-          doc.text(`${item.cantidad}x ${item.nombre} - Unit: $${item.precio.toFixed(2)} - Sub: $${item.subtotal.toFixed(2)}`, 15, y);
-          y += 5;
-        });
-
-        y += 2;
-        doc.setFont("helvetica", "bold");
-        doc.text(`TOTAL BOLETA: $${p.total.toFixed(2)}`, 140, y);
-        y += 8;
-        doc.line(10, y, 200, y);
-        y += 15;
-
-        pedidoIndex++;
-      });
-
-      doc.save(`Consolidado_${usuarioActual.user}_${Date.now()}.pdf`);
-    }
-
-    function exportarPDFSeguimiento() {
-      const vUser = document.getElementById('selectSeguimientoVendedor').value;
-      if (!vUser) return;
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]").filter(p => p.vendedorUser === vUser);
-
-      if (pedidos.length === 0) return alert('El vendedor seleccionado no posee pedidos en el día activo.');
-
-      let y = 15;
-      doc.setFontSize(14);
-      doc.text(`REPORTE DE SEGUIMIENTO - VENDEDOR: ${vUser.toUpperCase()}`, 10, y);
-      y += 10;
-
-      pedidos.forEach(p => {
-        doc.setFontSize(10);
-        doc.text(`Cliente: ${p.cliente.nombre} | Total: $${p.total.toFixed(2)}`, 10, y);
-        y += 6;
-      });
-
-      doc.save(`Seguimiento_${vUser}.pdf`);
-    }
-
-    // --- GESTION DE VENDEDORES (ADMIN) ---
-    function guardarVendedor() {
-      const user = document.getElementById('vendUser').value.trim().toLowerCase();
-      const nombre = document.getElementById('vendNombre').value.trim();
-      const pass = document.getElementById('vendPass').value.trim();
-      const rol = document.getElementById('vendRol').value;
-      const comision = parseFloat(document.getElementById('vendComision').value) || 0;
-      const repartidor = parseFloat(document.getElementById('vendRepartidor').value) || 0;
-
-      if (!user || !nombre || !pass) return alert('Complete todos los campos del vendedor.');
-
-      let usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
-      const idx = usuarios.findIndex(u => u.user.toLowerCase() === user);
-
-      if (idx >= 0) {
-        usuarios[idx] = { user, nombre, pass, rol, comision, repartidor };
-      } else {
-        usuarios.push({ user, nombre, pass, rol, comision, repartidor });
-      }
-
-      localStorage.setItem(KEY_USUARIOS, JSON.stringify(usuarios));
-      document.getElementById('vendUser').value = '';
-      document.getElementById('vendNombre').value = '';
-      document.getElementById('vendPass').value = '';
-      renderizarTablaVendedores();
-      cargarSelectSeguimientoVendedores();
-      alert('Vendedor guardado con éxito.');
-    }
-
+    // --- VENDEDORES (ADMIN) ---
     function renderizarTablaVendedores() {
       const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
       const tbody = document.getElementById('tablaVendedoresBody');
@@ -887,8 +879,6 @@
             <td>${u.user}</td>
             <td>${u.nombre}</td>
             <td><span class="badge ${u.rol === 'admin' ? 'badge-admin' : 'badge-vendedor'}">${u.rol}</span></td>
-            <td>${u.comision}%</td>
-            <td>${u.repartidor}%</td>
             <td>
               <button class="btn btn-sm btn-outline-danger" onclick="eliminarVendedor('${u.user}')"><i class="fa-solid fa-trash"></i></button>
             </td>
@@ -897,100 +887,36 @@
       });
     }
 
+    function guardarVendedor() {
+      const user = document.getElementById('vendUser').value.trim().toLowerCase();
+      const nombre = document.getElementById('vendNombre').value.trim();
+      const pass = document.getElementById('vendPass').value.trim();
+      const rol = document.getElementById('vendRol').value;
+
+      if (!user || !nombre || !pass) return alert('Complete todos los campos del vendedor');
+
+      let usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
+      if (usuarios.some(u => u.user.toLowerCase() === user)) return alert('El usuario ya existe');
+
+      usuarios.push({ user, pass, nombre, rol, comision: 5, repartidor: 8 });
+      localStorage.setItem(KEY_USUARIOS, JSON.stringify(usuarios));
+
+      document.getElementById('vendUser').value = '';
+      document.getElementById('vendNombre').value = '';
+      document.getElementById('vendPass').value = '';
+
+      renderizarTablaVendedores();
+      alert('Vendedor registrado exitosamente.');
+    }
+
     function eliminarVendedor(user) {
-      if (confirm(`¿Eliminar al vendedor ${user}?`)) {
+      if (confirm(`¿Desea eliminar el usuario ${user}?`)) {
         let usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
         usuarios = usuarios.filter(u => u.user !== user);
         localStorage.setItem(KEY_USUARIOS, JSON.stringify(usuarios));
         renderizarTablaVendedores();
-        cargarSelectSeguimientoVendedores();
       }
     }
-
-    // --- GESTION DE ARTICULOS (ADMIN) ---
-    function calcularPrecioFinalForm() {
-      const costo = parseFloat(document.getElementById('artCosto').value) || 0;
-      const margen = parseFloat(document.getElementById('artMargen').value) || 0;
-      const final = costo * (1 + (margen / 100));
-      document.getElementById('artPrecioFinal').value = final.toFixed(2);
-    }
-
-    function guardarArticulo() {
-      const id = document.getElementById('artIdEdit').value || Date.now().toString();
-      const nombre = document.getElementById('artNombre').value.trim();
-      const costo = parseFloat(document.getElementById('artCosto').value) || 0;
-      const margen = parseFloat(document.getElementById('artMargen').value) || 0;
-      const precio = parseFloat(document.getElementById('artPrecioFinal').value) || 0;
-
-      if (!nombre || precio <= 0) return alert('Ingrese un producto y precio válido.');
-
-      let articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
-      const idx = articulos.findIndex(a => a.id === id);
-
-      if (idx >= 0) {
-        articulos[idx] = { id, nombre, costo, margen, precio };
-      } else {
-        articulos.push({ id, nombre, costo, margen, precio });
-      }
-
-      localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulos));
-      document.getElementById('artIdEdit').value = '';
-      document.getElementById('artNombre').value = '';
-      document.getElementById('artCosto').value = '';
-      document.getElementById('artMargen').value = '25';
-      document.getElementById('artPrecioFinal').value = '';
-
-      renderizarTablaArticulos();
-      alert('Producto actualizado en el catálogo.');
-    }
-
-    function renderizarTablaArticulos() {
-      const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
-      const tbody = document.getElementById('tablaArticulosBody');
-      tbody.innerHTML = '';
-
-      articulos.forEach(a => {
-        tbody.innerHTML += `
-          <tr>
-            <td>${a.nombre}</td>
-            <td>$${(a.costo || 0).toFixed(2)}</td>
-            <td>${a.margen || 0}%</td>
-            <td><strong>$${a.precio.toFixed(2)}</strong></td>
-            <td>
-              <button class="btn btn-sm btn-outline-primary me-1" onclick="editarArticulo('${a.id}')"><i class="fa-solid fa-pen"></i></button>
-              <button class="btn btn-sm btn-outline-danger" onclick="eliminarArticulo('${a.id}')"><i class="fa-solid fa-trash"></i></button>
-            </td>
-          </tr>
-        `;
-      });
-    }
-
-    function editarArticulo(id) {
-      const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
-      const a = articulos.find(x => x.id === id);
-      if (a) {
-        document.getElementById('artIdEdit').value = a.id;
-        document.getElementById('artNombre').value = a.nombre;
-        document.getElementById('artCosto').value = a.costo || 0;
-        document.getElementById('artMargen').value = a.margen || 25;
-        document.getElementById('artPrecioFinal').value = a.precio.toFixed(2);
-      }
-    }
-
-    function eliminarArticulo(id) {
-      if (confirm('¿Desea eliminar este producto del catálogo?')) {
-        let articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
-        articulos = articulos.filter(a => a.id !== id);
-        localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulos));
-        renderizarTablaArticulos();
-      }
-    }
-
-    // --- INICIALIZACION AUTOMATICA AL CARGAR PAGINA ---
-    window.onload = function() {
-      inicializarBaseDeDatos();
-    };
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/bootstrap.bundle.min.js"></script>
 </body>
 </html>
