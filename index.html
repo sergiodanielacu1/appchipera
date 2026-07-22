@@ -107,9 +107,9 @@
               <div class="card p-3">
                 <h5><i class="fa-solid fa-box-open me-2"></i>2. Cargar Artículos</h5>
                 <div class="row g-2 mb-3">
-                  <div class="col-md-5">
+                  <div class="col-md-5 position-relative">
                     <input type="text" id="buscarArticuloInput" class="form-control" placeholder="Buscar producto activo..." onkeyup="autocompleteArticulo(this.value)">
-                    <div id="sugerenciasArticulos" class="list-group position-absolute z-3 shadow-sm" style="max-height:150px; overflow-y:auto;"></div>
+                    <div id="sugerenciasArticulos" class="list-group position-absolute w-100 z-3 shadow-sm" style="max-height:180px; overflow-y:auto;"></div>
                   </div>
                   <div class="col-md-3">
                     <input type="number" id="cantArticuloInput" class="form-control" placeholder="Cant." min="1" value="1">
@@ -124,7 +124,7 @@
                     <thead class="table-dark">
                       <tr>
                         <th>Producto</th>
-                        <th>Cant</th>
+                        <th style="width: 100px;">Cant</th>
                         <th>P. Unit</th>
                         <th>Subtotal</th>
                         <th>Acción</th>
@@ -235,14 +235,22 @@
             </div>
           </div>
 
-          <!-- BOTON BALANCE SEMANAL -->
+          <!-- REPORTE FINANCIERO CON FILTROS DE FECHA -->
           <div class="card p-3 mt-3 border-dark">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h5 class="mb-0 text-dark"><i class="fa-solid fa-scale-balanced me-2"></i>Reporte Financiero Semanal</h5>
-                <small class="text-muted">Genera un informe con la venta bruta, costos de productos, comisiones asignadas y ganancia neta.</small>
+            <h5 class="mb-2 text-dark"><i class="fa-solid fa-scale-balanced me-2"></i>Reporte Financiero Semanal</h5>
+            <small class="text-muted mb-3 d-block">Seleccione el rango de fechas para calcular el balance semanal por vendedor, el total consolidado de productos vendidost y la ganancia neta restante.</small>
+            <div class="row g-3 align-items-end">
+              <div class="col-md-4">
+                <label class="form-label font-weight-bold">Desde Fecha:</label>
+                <input type="date" id="balanceFechaDesde" class="form-control">
               </div>
-              <button class="btn btn-success btn-lg" onclick="generarPDFBalanceSemanal()"><i class="fa-solid fa-file-pdf me-2"></i>Balance Semanal</button>
+              <div class="col-md-4">
+                <label class="form-label font-weight-bold">Hasta Fecha:</label>
+                <input type="date" id="balanceFechaHasta" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <button class="btn btn-success w-100 btn-lg" onclick="generarPDFBalanceSemanal()"><i class="fa-solid fa-file-pdf me-2"></i>Generar Balance</button>
+              </div>
             </div>
           </div>
         </div>
@@ -336,11 +344,11 @@
 
   <script>
     // --- CLAVES DE ALMACENAMIENTO PERSISTENTE ---
-    const KEY_USUARIOS = 'app_persistent_usuarios_v2';
-    const KEY_CLIENTES = 'app_persistent_clientes_v2';
-    const KEY_ARTICULOS = 'app_persistent_articulos_v2';
-    const KEY_PEDIDOS = 'app_persistent_pedidos_v2';
-    const KEY_HISTORIAL = 'app_persistent_historial_v2';
+    const KEY_USUARIOS = 'app_persistent_usuarios_v1';
+    const KEY_CLIENTES = 'app_persistent_clientes_v1';
+    const KEY_ARTICULOS = 'app_persistent_articulos_v1';
+    const KEY_PEDIDOS = 'app_persistent_pedidos_v1';
+    const KEY_HISTORIAL = 'app_persistent_historial_v1';
     const KEY_SESSION = 'app_session_usuario';
     const KEY_COLA_OFFLINE = 'app_cola_pendientes';
 
@@ -354,7 +362,17 @@
       inicializarBaseDeDatos();
       configurarMonitoreoConexion();
       verificarSesionGuardada();
+      establecerFechasPredeterminadas();
     });
+
+    function establecerFechasPredeterminadas() {
+      const hoy = new Date();
+      const hace7Dias = new Date();
+      hace7Dias.setDate(hoy.getDate() - 7);
+
+      document.getElementById('balanceFechaHasta').value = hoy.toISOString().split('T')[0];
+      document.getElementById('balanceFechaDesde').value = hace7Dias.toISOString().split('T')[0];
+    }
 
     function inicializarBaseDeDatos() {
       if (!localStorage.getItem(KEY_USUARIOS)) {
@@ -421,7 +439,7 @@
       }
     }
 
-    // --- AUTENTICACION Y SESION PERSISTENTE ---
+    // --- AUTENTICACIÓN Y SESIÓN PERSISTENTE ---
     function verificarSesionGuardada() {
       const sesionGuardada = localStorage.getItem(KEY_SESSION);
       if (sesionGuardada) {
@@ -642,34 +660,22 @@
       tbody.innerHTML = '';
 
       articulos.forEach(a => {
-        const estaActivo = a.activo !== false;
         tbody.innerHTML += `
-          <tr class="${!estaActivo ? 'table-secondary text-muted' : ''}">
+          <tr>
             <td>${a.nombre}</td>
-            <td>$${a.costo.toFixed(2)}</td>
+            <td>$${parseFloat(a.costo || 0).toFixed(2)}</td>
             <td>${a.margen}%</td>
-            <td>$${a.precio.toFixed(2)}</td>
-            <td><span class="badge ${estaActivo ? 'bg-success' : 'bg-danger'}">${estaActivo ? 'Activo' : 'Deshabilitado'}</span></td>
+            <td><strong>$${parseFloat(a.precio || 0).toFixed(2)}</strong></td>
+            <td><span class="badge ${a.activo !== false ? 'bg-success' : 'bg-secondary'}">${a.activo !== false ? 'Activo' : 'Inactivo'}</span></td>
             <td>
               <button class="btn btn-sm btn-outline-primary me-1" onclick="editarArticulo('${a.id}')"><i class="fa-solid fa-pen"></i></button>
-              <button class="btn btn-sm ${estaActivo ? 'btn-outline-warning' : 'btn-outline-success'} me-1" onclick="toggleEstadoArticulo('${a.id}')" title="${estaActivo ? 'Deshabilitar' : 'Habilitar'}">
-                <i class="fa-solid ${estaActivo ? 'fa-ban' : 'fa-check'}"></i>
+              <button class="btn btn-sm ${a.activo !== false ? 'btn-outline-warning' : 'btn-outline-success'}" onclick="toggleEstadoArticulo('${a.id}')">
+                <i class="fa-solid ${a.activo !== false ? 'fa-eye-slash' : 'fa-eye'}"></i>
               </button>
-              <button class="btn btn-sm btn-outline-danger" onclick="eliminarArticulo('${a.id}')"><i class="fa-solid fa-trash"></i></button>
             </td>
           </tr>
         `;
       });
-    }
-
-    function toggleEstadoArticulo(id) {
-      let articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
-      const idx = articulos.findIndex(a => a.id === id);
-      if (idx >= 0) {
-        articulos[idx].activo = !(articulos[idx].activo !== false);
-        localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulos));
-        renderizarTablaArticulos();
-      }
     }
 
     function editarArticulo(id) {
@@ -684,88 +690,97 @@
       }
     }
 
-    function eliminarArticulo(id) {
-      if (confirm('¿Desea eliminar este producto del catálogo?')) {
-        let articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
-        articulos = articulos.filter(a => a.id !== id);
+    function toggleEstadoArticulo(id) {
+      let articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
+      const idx = articulos.findIndex(a => a.id === id);
+      if (idx >= 0) {
+        articulos[idx].activo = !(articulos[idx].activo !== false);
         localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulos));
         renderizarTablaArticulos();
       }
     }
 
-    // --- MANEJO DE PEDIDOS EN VENTA ---
-    function autocompleteArticulo(q) {
-      const sug = document.getElementById('sugerenciasArticulos');
-      sug.innerHTML = '';
-      if (!q.trim()) return;
+    // --- BÚSQUEDA Y AUTOCOMPLETE DE ARTÍCULOS EN PEDIDOS ---
+    function autocompleteArticulo(val) {
+      const sugerencias = document.getElementById('sugerenciasArticulos');
+      sugerencias.innerHTML = '';
+      if (!val.trim()) return;
 
       const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
-      const filtrados = articulos.filter(a => a.activo !== false && a.nombre.toLowerCase().includes(q.toLowerCase()));
+      const activos = articulos.filter(a => a.activo !== false && a.nombre.toLowerCase().includes(val.toLowerCase()));
 
-      filtrados.forEach(a => {
+      activos.forEach(a => {
         const item = document.createElement('a');
-        item.className = 'list-group-item list-group-item-action';
+        item.className = 'list-group-item list-group-item-action text-truncate';
         item.href = '#';
-        item.innerHTML = `<strong>${a.nombre}</strong> - $${a.precio.toFixed(2)}`;
+        item.innerText = `${a.nombre} - $${parseFloat(a.precio).toFixed(2)}`;
         item.onclick = (e) => {
           e.preventDefault();
           document.getElementById('buscarArticuloInput').value = a.nombre;
           articuloSeleccionadoId = a.id;
-          sug.innerHTML = '';
+          sugerencias.innerHTML = '';
         };
-        sug.appendChild(item);
+        sugerencias.appendChild(item);
       });
     }
 
     function agregarArticuloAPedido() {
-      const nombreInput = document.getElementById('buscarArticuloInput').value.trim();
-      const cantidad = parseInt(document.getElementById('cantArticuloInput').value) || 1;
+      const inputNombre = document.getElementById('buscarArticuloInput').value.trim();
+      const cant = parseInt(document.getElementById('cantArticuloInput').value) || 1;
       const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
 
       let art = articulos.find(a => a.id === articuloSeleccionadoId);
       if (!art) {
-        art = articulos.find(a => a.nombre.toLowerCase() === nombreInput.toLowerCase() && a.activo !== false);
+        art = articulos.find(a => a.nombre.toLowerCase() === inputNombre.toLowerCase() && a.activo !== false);
       }
 
-      if (!art) return alert('Seleccione un artículo válido activo.');
+      if (!art) return alert('Seleccione o ingrese un producto válido y activo.');
 
-      const itemExistente = pedidoTemporal.find(p => p.articuloId === art.id);
-      if (itemExistente) {
-        itemExistente.cantidad += cantidad;
-        itemExistente.subtotal = itemExistente.cantidad * itemExistente.precio;
-        itemExistente.costoSubtotal = itemExistente.cantidad * (art.costo || 0);
+      const index = pedidoTemporal.findIndex(i => i.articuloId === art.id);
+      if (index >= 0) {
+        pedidoTemporal[index].cantidad += cant;
+        pedidoTemporal[index].subtotal = pedidoTemporal[index].cantidad * pedidoTemporal[index].precio;
       } else {
         pedidoTemporal.push({
           articuloId: art.id,
           nombre: art.nombre,
           precio: art.precio,
-          costoUnitario: art.costo || 0,
-          cantidad: cantidad,
-          subtotal: art.precio * cantidad,
-          costoSubtotal: (art.costo || 0) * cantidad
+          costo: art.costo,
+          cantidad: cant,
+          subtotal: cant * art.precio
         });
       }
 
-      document.getElementById('buscarArticuloInput').value = '';
-      document.getElementById('cantArticuloInput').value = '1';
       articuloSeleccionadoId = null;
-      renderizarTablaDetallePedido();
+      document.getElementById('buscarArticuloInput').value = '';
+      document.getElementById('cantArticuloInput').value = 1;
+      renderizarTablaPedidoTemporal();
     }
 
-    function renderizarTablaDetallePedido() {
+    function cambiarCantidadItemPedido(idx, nuevaCant) {
+      const c = parseInt(nuevaCant) || 1;
+      if (c <= 0) return;
+      pedidoTemporal[idx].cantidad = c;
+      pedidoTemporal[idx].subtotal = c * pedidoTemporal[idx].precio;
+      renderizarTablaPedidoTemporal();
+    }
+
+    function renderizarTablaPedidoTemporal() {
       const tbody = document.getElementById('tablaDetallePedido');
       tbody.innerHTML = '';
       let total = 0;
 
-      pedidoTemporal.forEach((item, index) => {
+      pedidoTemporal.forEach((item, idx) => {
         total += item.subtotal;
         tbody.innerHTML += `
           <tr>
             <td>${item.nombre}</td>
-            <td>${item.cantidad}</td>
+            <td>
+              <input type="number" class="form-control form-control-sm" min="1" value="${item.cantidad}" onchange="cambiarCantidadItemPedido(${idx}, this.value)">
+            </td>
             <td>$${item.precio.toFixed(2)}</td>
             <td>$${item.subtotal.toFixed(2)}</td>
-            <td><button class="btn btn-sm btn-outline-danger" onclick="quitarItemPedido(${index})"><i class="fa-solid fa-xmark"></i></button></td>
+            <td><button class="btn btn-sm btn-outline-danger" onclick="eliminarItemPedidoTemporal(${idx})"><i class="fa-solid fa-xmark"></i></button></td>
           </tr>
         `;
       });
@@ -773,31 +788,29 @@
       document.getElementById('totalPedidoActual').innerText = total.toFixed(2);
     }
 
-    function quitarItemPedido(index) {
-      pedidoTemporal.splice(index, 1);
-      renderizarTablaDetallePedido();
+    function eliminarItemPedidoTemporal(idx) {
+      pedidoTemporal.splice(idx, 1);
+      renderizarTablaPedidoTemporal();
     }
 
     function guardarPedidoCompleto() {
-      const clienteId = document.getElementById('selectClientePedido').value;
-      if (!clienteId) return alert('Debe seleccionar un cliente.');
-      if (pedidoTemporal.length === 0) return alert('Agregue al menos un producto al pedido.');
+      const selectCliente = document.getElementById('selectClientePedido');
+      const clienteId = selectCliente.value;
+
+      if (!clienteId) return alert('Por favor, seleccione un cliente.');
+      if (pedidoTemporal.length === 0) return alert('El pedido está vacío.');
 
       const clientes = JSON.parse(localStorage.getItem(KEY_CLIENTES) || "[]");
       const cliente = clientes.find(c => c.id === clienteId);
 
-      const total = pedidoTemporal.reduce((sum, item) => sum + item.subtotal, 0);
-      const costoTotal = pedidoTemporal.reduce((sum, item) => sum + (item.costoSubtotal || 0), 0);
-
       const nuevoPedido = {
         id: Date.now().toString(),
-        vendedorUser: usuarioActual.user,
+        vendedor: usuarioActual.user,
         vendedorNombre: usuarioActual.nombre,
         cliente: cliente,
         items: [...pedidoTemporal],
-        total: total,
-        costoTotal: costoTotal,
-        fecha: new Date().toLocaleString('es-AR')
+        total: parseFloat(document.getElementById('totalPedidoActual').innerText),
+        fecha: new Date().toISOString()
       };
 
       let pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
@@ -811,37 +824,38 @@
       }
 
       pedidoTemporal = [];
-      renderizarTablaDetallePedido();
+      renderizarTablaPedidoTemporal();
       renderizarDiaActivo();
-      alert('¡Pedido guardado con éxito!');
+      if (usuarioActual.rol === 'admin') renderizarSeguimientoVendedor();
+
+      alert('Pedido guardado correctamente.');
     }
 
-    // --- DIA ACTIVO ---
+    // --- DIA ACTIVO Y CIERRE ---
     function renderizarDiaActivo() {
-      if (!usuarioActual) return;
       document.getElementById('diaVendedorNombre').innerText = usuarioActual.nombre;
-
       const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
-      const misPedidos = pedidos.filter(p => p.vendedorUser === usuarioActual.user);
-      const cont = document.getElementById('listaPedidosDiaActivo');
-      cont.innerHTML = '';
+      const misPedidos = pedidos.filter(p => p.vendedor === usuarioActual.user);
+      const contenedor = document.getElementById('listaPedidosDiaActivo');
+      contenedor.innerHTML = '';
 
       if (misPedidos.length === 0) {
-        cont.innerHTML = '<div class="col-12"><p class="text-muted text-center py-4">No hay pedidos registrados en el recorrido actual.</p></div>';
+        contenedor.innerHTML = '<div class="col-12"><p class="text-muted">No hay pedidos registrados en el día activo.</p></div>';
         return;
       }
 
-      misPedidos.forEach(p => {
+      misPedidos.forEach((p, index) => {
         let itemsHtml = p.items.map(i => `<li>${i.cantidad}x ${i.nombre} ($${i.subtotal.toFixed(2)})</li>`).join('');
-        cont.innerHTML += `
-          <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card h-100 border-start border-4 border-primary">
+        contenedor.innerHTML += `
+          <div class="col-md-6 mb-3">
+            <div class="card border-primary">
+              <div class="card-header bg-primary text-white d-flex justify-content-between">
+                <span><strong>Boleta #${index + 1}</strong> - ${p.cliente.nombre}</span>
+                <span>$${p.total.toFixed(2)}</span>
+              </div>
               <div class="card-body">
-                <h6 class="card-title font-weight-bold">${p.cliente.nombre}</h6>
-                <p class="small text-muted mb-1"><i class="fa-solid fa-location-dot me-1"></i>${p.cliente.direccion}, ${p.cliente.localidad}</p>
-                <p class="small text-muted"><i class="fa-solid fa-clock me-1"></i>${p.fecha}</p>
-                <ul class="small ps-3">${itemsHtml}</ul>
-                <h6 class="text-end text-primary mb-0">Total: $${p.total.toFixed(2)}</h6>
+                <p class="mb-1"><small><strong>Dir:</strong> ${p.cliente.direccion}, ${p.cliente.localidad}</small></p>
+                <ul>${itemsHtml}</ul>
               </div>
             </div>
           </div>
@@ -849,359 +863,132 @@
       });
     }
 
-    // --- GENERACIÓN DE PDFS ---
-    function exportarDoblePDFVendedor() {
-      const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
-      const misPedidos = pedidos.filter(p => p.vendedorUser === usuarioActual.user);
-      
-      if (misPedidos.length === 0) return alert("No hay pedidos activos para exportar.");
-
-      generarPDFBoletas(misPedidos, usuarioActual.nombre);
-      generarPDFConsolidado(misPedidos, usuarioActual.nombre);
-    }
-
-    function generarPDFBoletas(pedidosList, vendedorNombre) {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('p', 'mm', 'a4');
-      
-      let currentY = 10;
-      let countInPage = 0;
-      const maxHeightPerTicket = 85; 
-
-      pedidosList.forEach((pedido, idx) => {
-        if (countInPage >= 3 || (currentY + maxHeightPerTicket) > 280) {
-          doc.addPage();
-          currentY = 10;
-          countInPage = 0;
-        }
-
-        doc.setLineWidth(0.3);
-        doc.rect(10, currentY, 190, 82);
-
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`BOLETA DE PEDIDO #${pedido.id.slice(-6)}`, 15, currentY + 7);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Vendedor: ${vendedorNombre} | Fecha: ${pedido.fecha}`, 100, currentY + 7);
-
-        doc.line(10, currentY + 10, 200, currentY + 10);
-
-        doc.setFont('helvetica', 'bold');
-        doc.text(`Cliente: ${pedido.cliente.nombre}`, 15, currentY + 16);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Dirección: ${pedido.cliente.direccion} (${pedido.cliente.localidad})`, 15, currentY + 21);
-        doc.text(`Teléfono: ${pedido.cliente.telefono || 'N/A'}`, 130, currentY + 21);
-
-        doc.line(10, currentY + 24, 200, currentY + 24);
-
-        doc.setFont('helvetica', 'bold');
-        doc.text('Cant.', 15, currentY + 29);
-        doc.text('Producto', 35, currentY + 29);
-        doc.text('P. Unit', 140, currentY + 29);
-        doc.text('Subtotal', 170, currentY + 29);
-        doc.line(10, currentY + 31, 200, currentY + 31);
-
-        doc.setFont('helvetica', 'normal');
-        let itemY = currentY + 36;
-        const visibleItems = pedido.items.slice(0, 6);
-
-        visibleItems.forEach(item => {
-          doc.text(`${item.cantidad}`, 15, itemY);
-          doc.text(`${item.nombre.substring(0, 45)}`, 35, itemY);
-          doc.text(`$${item.precio.toFixed(2)}`, 140, itemY);
-          doc.text(`$${item.subtotal.toFixed(2)}`, 170, itemY);
-          itemY += 5;
-        });
-
-        if (pedido.items.length > 6) {
-          doc.setFontSize(8);
-          doc.text(`...y ${pedido.items.length - 6} productos más.`, 35, itemY);
-        }
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.line(10, currentY + 72, 200, currentY + 72);
-        doc.text(`TOTAL PEDIDO: $${pedido.total.toFixed(2)}`, 140, currentY + 78);
-
-        currentY += 88;
-        countInPage++;
-      });
-
-      doc.save(`Boletas_Pedidos_${vendedorNombre.replace(/\s+/g, '_')}.pdf`);
-    }
-
-    function generarPDFConsolidado(pedidosList, vendedorNombre) {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('p', 'mm', 'a4');
-
-      const articulosResumen = {};
-      let totalFacturado = 0;
-      const clientesUnicos = new Set();
-
-      pedidosList.forEach(p => {
-        totalFacturado += p.total;
-        clientesUnicos.add(p.cliente.id);
-
-        p.items.forEach(item => {
-          if (!articulosResumen[item.nombre]) {
-            articulosResumen[item.nombre] = { cantidad: 0, subtotal: 0 };
-          }
-          articulosResumen[item.nombre].cantidad += item.cantidad;
-          articulosResumen[item.nombre].subtotal += item.subtotal;
-        });
-      });
-
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text("RESUMEN CONSOLIDADO DE VENTAS", 15, 18);
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Vendedor: ${vendedorNombre}`, 15, 25);
-      doc.text(`Fecha Emisión: ${new Date().toLocaleString('es-AR')}`, 15, 30);
-      doc.text(`Clientes Atendidos: ${clientesUnicos.size}`, 130, 25);
-      doc.text(`Total Pedidos: ${pedidosList.length}`, 130, 30);
-
-      doc.line(15, 34, 195, 34);
-
-      doc.setFont('helvetica', 'bold');
-      doc.text("Producto / Descripción", 15, 41);
-      doc.text("Cant. Total", 110, 41);
-      doc.text("Total Vendido ($)", 150, 41);
-      doc.line(15, 44, 195, 44);
-
-      doc.setFont('helvetica', 'normal');
-      let y = 50;
-
-      Object.keys(articulosResumen).forEach(prodNombre => {
-        if (y > 270) {
-          doc.addPage();
-          y = 20;
-        }
-        const data = articulosResumen[prodNombre];
-        doc.text(prodNombre, 15, y);
-        doc.text(`${data.cantidad}`, 110, y);
-        doc.text(`$${data.subtotal.toFixed(2)}`, 150, y);
-        y += 7;
-      });
-
-      doc.line(15, y, 195, y);
-      y += 8;
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`TOTAL FACTURACIÓN DÍA: $${totalFacturado.toFixed(2)}`, 110, y);
-
-      doc.save(`Consolidado_Ventas_${vendedorNombre.replace(/\s+/g, '_')}.pdf`);
-    }
-
-    // --- NUEVO: PDF BALANCE SEMANAL FINANCIERO (ADMIN) ---
-    function generarPDFBalanceSemanal() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('p', 'mm', 'a4');
-
-      const pedidosActivos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
-      const historialCierres = JSON.parse(localStorage.getItem(KEY_HISTORIAL) || "[]");
-      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
-      const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
-
-      // Consolidar todos los pedidos (activos + cierres pasados)
-      let todosLosPedidos = [...pedidosActivos];
-      historialCierres.forEach(c => {
-        if (c.pedidos && Array.isArray(c.pedidos)) {
-          todosLosPedidos.push(...c.pedidos);
-        }
-      });
-
-      if (todosLosPedidos.length === 0) {
-        return alert("No hay pedidos ni cierres registrados para generar el balance.");
-      }
-
-      let ventaBrutaTotal = 0;
-      let costoArticulosTotal = 0;
-      let comisionVendedoresTotal = 0;
-      let comisionRepartoTotal = 0;
-
-      todosLosPedidos.forEach(p => {
-        ventaBrutaTotal += p.total;
-
-        // Calcular costo de los artículos del pedido
-        p.items.forEach(it => {
-          let art = articulos.find(a => a.id === it.articuloId || a.nombre === it.nombre);
-          let costoUnit = art ? art.costo : (it.costoUnitario || 0);
-          costoArticulosTotal += (costoUnit * it.cantidad);
-        });
-
-        // Buscar comisiones configuradas del vendedor
-        let vendObj = usuarios.find(u => u.user === p.vendedorUser);
-        let pctVenta = vendObj ? (parseFloat(vendObj.comision) || 0) : 5;
-        let pctReparto = vendObj ? (parseFloat(vendObj.repartidor) || 0) : 9;
-
-        comisionVendedoresTotal += (p.total * (pctVenta / 100));
-        comisionRepartoTotal += (p.total * (pctReparto / 100));
-      });
-
-      let gananciaNeta = ventaBrutaTotal - costoArticulosTotal - comisionVendedoresTotal - comisionRepartoTotal;
-
-      // Dibujar PDF
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text("BALANCE SEMANAL DE VENTAS Y RENTABILIDAD", 15, 20);
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Fecha de emisión: ${new Date().toLocaleString('es-AR')}`, 15, 27);
-      doc.text(`Total Pedidos Auditados: ${todosLosPedidos.length}`, 15, 32);
-
-      doc.line(15, 36, 195, 36);
-
-      // Cuadro de Resumen Financiero
-      doc.setFillColor(245, 247, 250);
-      doc.rect(15, 42, 180, 85, 'F');
-      doc.rect(15, 42, 180, 85, 'S');
-
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text("DESGLOSE FINANCIERO CONSOLIDADO", 20, 52);
-      doc.line(20, 55, 190, 55);
-
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text("Venta Bruta Total acumulada:", 20, 65);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`$ ${ventaBrutaTotal.toFixed(2)}`, 140, 65);
-
-      doc.setFont('helvetica', 'normal');
-      doc.text("(-) Costo Directo de Artículos:", 20, 75);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`$ ${costoArticulosTotal.toFixed(2)}`, 140, 75);
-
-      doc.setFont('helvetica', 'normal');
-      doc.text("(-) Comisiones de Vendedores:", 20, 85);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`$ ${comisionVendedoresTotal.toFixed(2)}`, 140, 85);
-
-      doc.setFont('helvetica', 'normal');
-      doc.text("(-) Comisiones de Reparto / Logística:", 20, 95);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`$ ${comisionRepartoTotal.toFixed(2)}`, 140, 95);
-
-      doc.line(20, 102, 190, 102);
-
-      doc.setFontSize(13);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(gananciaNeta >= 0 ? 0 : 200, gananciaNeta >= 0 ? 128 : 0, 0);
-      doc.text("GANANCIA NETA RESTANTE:", 20, 115);
-      doc.text(`$ ${gananciaNeta.toFixed(2)}`, 140, 115);
-
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'italic');
-      doc.text("* Este reporte considera todos los pedidos del ciclo activo e historial de cierres guardados.", 15, 135);
-
-      doc.save(`Balance_Semanal_${new Date().toISOString().slice(0,10)}.pdf`);
-    }
-
-    // --- CIERRE DE DIA E HISTORIAL ---
     function efectuarCierreDeDia() {
       let pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
-      const misPedidos = pedidos.filter(p => p.vendedorUser === usuarioActual.user);
+      const misPedidos = pedidos.filter(p => p.vendedor === usuarioActual.user);
 
-      if (misPedidos.length === 0) return alert("No tienes pedidos activos para realizar el cierre.");
+      if (misPedidos.length === 0) return alert('No tiene pedidos activos para cerrar el día.');
 
-      if (confirm(`¿Confirmar cierre de día? Se procesarán ${misPedidos.length} pedidos.`)) {
+      if (confirm('¿Desea cerrar el día? Los pedidos pasarán al historial.')) {
         let historial = JSON.parse(localStorage.getItem(KEY_HISTORIAL) || "[]");
-        const totalFacturado = misPedidos.reduce((a, b) => a + b.total, 0);
-
-        const cierre = {
+        const nuevoCierre = {
           id: Date.now().toString(),
-          vendedorUser: usuarioActual.user,
+          vendedor: usuarioActual.user,
           vendedorNombre: usuarioActual.nombre,
-          fechaCierre: new Date().toLocaleString('es-AR'),
-          cantPedidos: misPedidos.length,
-          total: totalFacturado,
-          pedidos: misPedidos
+          fecha: new Date().toISOString(),
+          pedidos: misPedidos,
+          totalDia: misPedidos.reduce((acc, curr) => acc + curr.total, 0)
         };
 
-        historial.push(cierre);
+        historial.push(nuevoCierre);
         localStorage.setItem(KEY_HISTORIAL, JSON.stringify(historial));
 
-        pedidos = pedidos.filter(p => p.vendedorUser !== usuarioActual.user);
+        pedidos = pedidos.filter(p => p.vendedor !== usuarioActual.user);
         localStorage.setItem(KEY_PEDIDOS, JSON.stringify(pedidos));
 
         renderizarDiaActivo();
         renderizarHistorialCierres();
-        alert("¡Cierre de día completado correctamente!");
+        if (usuarioActual.rol === 'admin') renderizarSeguimientoVendedor();
+
+        alert('Día cerrado con éxito.');
       }
     }
 
     function renderizarHistorialCierres() {
       const historial = JSON.parse(localStorage.getItem(KEY_HISTORIAL) || "[]");
-      const cont = document.getElementById('contenedorHistorialCierres');
-      cont.innerHTML = '';
+      const contenedor = document.getElementById('contenedorHistorialCierres');
+      contenedor.innerHTML = '';
 
-      let cierresVer = historial;
-      if (usuarioActual && usuarioActual.rol !== 'admin') {
-        cierresVer = historial.filter(h => h.vendedorUser === usuarioActual.user);
-      }
+      const cierresVisibles = usuarioActual.rol === 'admin' 
+        ? historial 
+        : historial.filter(h => h.vendedor === usuarioActual.user);
 
-      if (cierresVer.length === 0) {
-        cont.innerHTML = '<p class="text-muted text-center py-3">No hay cierres de día registrados.</p>';
+      if (cierresVisibles.length === 0) {
+        contenedor.innerHTML = '<p class="text-muted">No se registran cierres de día acumulados.</p>';
         return;
       }
 
-      cierresVer.slice().reverse().forEach(c => {
-        cont.innerHTML += `
-          <div class="card mb-2 p-3">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="mb-0">Cierre: ${c.fechaCierre}</h6>
-                <small class="text-muted">Vendedor: ${c.vendedorNombre} | Pedidos: ${c.cantPedidos}</small>
-              </div>
-              <h5 class="text-success mb-0">$${c.total.toFixed(2)}</h5>
+      cierresVisibles.slice().reverse().forEach(c => {
+        const fechaStr = new Date(c.fecha).toLocaleString();
+        contenedor.innerHTML += `
+          <div class="card mb-2 p-3 bg-light">
+            <div class="d-flex justify-content-between">
+              <strong>${c.vendedorNombre} (${fechaStr})</strong>
+              <span class="badge bg-success font-weight-bold">$${c.totalDia.toFixed(2)}</span>
             </div>
+            <small class="text-muted">${c.pedidos.length} pedido(s) integrados en este cierre.</small>
           </div>
         `;
       });
     }
 
-    // --- VENDEDORES Y SEGUIMIENTO (ADMIN) ---
-    function guardarVendedor() {
-      const editUser = document.getElementById('vendUserEdit').value;
-      const u = document.getElementById('vendUser').value.trim().toLowerCase();
-      const n = document.getElementById('vendNombre').value.trim();
-      const p = document.getElementById('vendPass').value.trim();
-      const r = document.getElementById('vendRol').value;
-      const comVenta = parseFloat(document.getElementById('vendComisionVenta').value) || 0;
-      const comReparto = parseFloat(document.getElementById('vendComisionReparto').value) || 0;
+    // --- FUNCIONES ADMIN Y SEGUIMIENTO ---
+    function cargarVendedoresEnSeguimiento() {
+      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
+      const sel = document.getElementById('selectSeguimientoVendedor');
+      sel.innerHTML = '';
+      usuarios.filter(u => u.rol === 'vendedor').forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.user;
+        opt.text = `${v.nombre} (@${v.user})`;
+        sel.appendChild(opt);
+      });
+      renderizarSeguimientoVendedor();
+    }
 
-      if (!u || !n || !p) return alert('Complete todos los campos del vendedor.');
+    function renderizarSeguimientoVendedor() {
+      const vUser = document.getElementById('selectSeguimientoVendedor').value;
+      if (!vUser) return;
+
+      const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
+      const pedidosVendedor = pedidos.filter(p => p.vendedor === vUser);
+
+      document.getElementById('segCantPedidos').innerText = pedidosVendedor.length;
+      const totalMonto = pedidosVendedor.reduce((a, b) => a + b.total, 0);
+      document.getElementById('segMontoActivo').innerText = `$${totalMonto.toFixed(2)}`;
+
+      const contenedor = document.getElementById('segContenedorPedidosActivos');
+      contenedor.innerHTML = '';
+
+      if (pedidosVendedor.length === 0) {
+        contenedor.innerHTML = '<p class="text-muted">El vendedor no posee pedidos activos en este momento.</p>';
+        return;
+      }
+
+      pedidosVendedor.forEach((p, idx) => {
+        contenedor.innerHTML += `
+          <div class="border rounded p-2 mb-2 bg-white">
+            <div class="d-flex justify-content-between">
+              <strong>Boleta #${idx + 1} - ${p.cliente.nombre}</strong>
+              <span class="text-primary font-weight-bold">$${p.total.toFixed(2)}</span>
+            </div>
+            <small class="text-muted">${p.cliente.direccion}, ${p.cliente.localidad}</small>
+          </div>
+        `;
+      });
+    }
+
+    function guardarVendedor() {
+      const userOriginal = document.getElementById('vendUserEdit').value;
+      const user = document.getElementById('vendUser').value.trim().toLowerCase();
+      const nombre = document.getElementById('vendNombre').value.trim();
+      const pass = document.getElementById('vendPass').value.trim();
+      const rol = document.getElementById('vendRol').value;
+      const comision = parseFloat(document.getElementById('vendComisionVenta').value) || 0;
+      const repartidor = parseFloat(document.getElementById('vendComisionReparto').value) || 0;
+
+      if (!user || !nombre || !pass) return alert('Todos los campos son obligatorios.');
 
       let usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
 
-      if (editUser) {
-        const idx = usuarios.findIndex(x => x.user === editUser);
+      if (userOriginal) {
+        const idx = usuarios.findIndex(u => u.user === userOriginal);
         if (idx >= 0) {
-          usuarios[idx] = { 
-            ...usuarios[idx], 
-            user: u, 
-            nombre: n, 
-            pass: p, 
-            rol: r, 
-            comision: comVenta, 
-            repartidor: comReparto 
-          };
+          usuarios[idx] = { user, pass, nombre, rol, comision, repartidor };
         }
       } else {
-        if (usuarios.some(x => x.user === u)) return alert('El nombre de usuario ya existe.');
-        usuarios.push({ 
-          user: u, 
-          pass: p, 
-          nombre: n, 
-          rol: r, 
-          comision: comVenta, 
-          repartidor: comReparto 
-        });
+        if (usuarios.some(u => u.user === user)) return alert('El nombre de usuario ya existe.');
+        usuarios.push({ user, pass, nombre, rol, comision, repartidor });
       }
 
       localStorage.setItem(KEY_USUARIOS, JSON.stringify(usuarios));
@@ -1214,7 +1001,7 @@
 
       renderizarTablaVendedores();
       cargarVendedoresEnSeguimiento();
-      alert('Vendedor y comisiones guardados con éxito.');
+      alert('Vendedor actualizado exitosamente.');
     }
 
     function renderizarTablaVendedores() {
@@ -1223,119 +1010,356 @@
       tbody.innerHTML = '';
 
       usuarios.forEach(u => {
-        const comV = u.comision !== undefined ? u.comision : 5;
-        const comR = u.repartidor !== undefined ? u.repartidor : 9;
-
         tbody.innerHTML += `
           <tr>
             <td>${u.user}</td>
             <td>${u.nombre}</td>
             <td><span class="badge ${u.rol === 'admin' ? 'badge-admin' : 'badge-vendedor'}">${u.rol}</span></td>
-            <td><span class="badge bg-info text-dark">${comV}%</span></td>
-            <td><span class="badge bg-secondary">${comR}%</span></td>
+            <td>${u.comision !== undefined ? u.comision : 5}%</td>
+            <td>${u.repartidor !== undefined ? u.repartidor : 9}%</td>
             <td>
-              <button class="btn btn-sm btn-outline-primary me-1" onclick="editarVendedor('${u.user}')"><i class="fa-solid fa-pen"></i></button>
-              <button class="btn btn-sm btn-outline-danger" onclick="eliminarVendedor('${u.user}')"><i class="fa-solid fa-trash"></i></button>
+              <button class="btn btn-sm btn-outline-primary" onclick="editarVendedor('${u.user}')"><i class="fa-solid fa-pen"></i></button>
             </td>
           </tr>
         `;
       });
     }
 
-    function editarVendedor(u) {
+    function editarVendedor(uUser) {
       const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
-      const user = usuarios.find(x => x.user === u);
-      if (user) {
-        document.getElementById('vendUserEdit').value = user.user;
-        document.getElementById('vendUser').value = user.user;
-        document.getElementById('vendNombre').value = user.nombre;
-        document.getElementById('vendPass').value = user.pass;
-        document.getElementById('vendRol').value = user.rol;
-        document.getElementById('vendComisionVenta').value = user.comision !== undefined ? user.comision : 5;
-        document.getElementById('vendComisionReparto').value = user.repartidor !== undefined ? user.repartidor : 9;
+      const u = usuarios.find(x => x.user === uUser);
+      if (u) {
+        document.getElementById('vendUserEdit').value = u.user;
+        document.getElementById('vendUser').value = u.user;
+        document.getElementById('vendNombre').value = u.nombre;
+        document.getElementById('vendPass').value = u.pass;
+        document.getElementById('vendRol').value = u.rol;
+        document.getElementById('vendComisionVenta').value = u.comision !== undefined ? u.comision : 5;
+        document.getElementById('vendComisionReparto').value = u.repartidor !== undefined ? u.repartidor : 9;
       }
     }
 
-    function eliminarVendedor(u) {
-      if (confirm(`¿Desea eliminar el vendedor ${u}?`)) {
-        let usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
-        usuarios = usuarios.filter(x => x.user !== u);
-        localStorage.setItem(KEY_USUARIOS, JSON.stringify(usuarios));
-        renderizarTablaVendedores();
-        cargarVendedoresEnSeguimiento();
-      }
-    }
-
-    function cargarVendedoresEnSeguimiento() {
-      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
-      const sel = document.getElementById('selectSeguimientoVendedor');
-      if (!sel) return;
-      sel.innerHTML = '';
-
-      usuarios.filter(u => u.rol === 'vendedor').forEach(u => {
-        const opt = document.createElement('option');
-        opt.value = u.user;
-        opt.text = `${u.nombre} (@${u.user})`;
-        sel.appendChild(opt);
-      });
-
-      renderizarSeguimientoVendedor();
-    }
-
-    function renderizarSeguimientoVendedor() {
-      const selUser = document.getElementById('selectSeguimientoVendedor').value;
+    // --- GENERACIÓN DE PDFS EN FORMATO A4 ---
+    function exportarDoblePDFVendedor() {
       const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
-      const pedidosVendedor = pedidos.filter(p => p.vendedorUser === selUser);
+      const misPedidos = pedidos.filter(p => p.vendedor === usuarioActual.user);
 
-      const totalMonto = pedidosVendedor.reduce((a, b) => a + b.total, 0);
+      if (misPedidos.length === 0) return alert('No hay pedidos en el día activo para exportar.');
 
-      document.getElementById('segCantPedidos').innerText = pedidosVendedor.length;
-      document.getElementById('segMontoActivo').innerText = `$${totalMonto.toFixed(2)}`;
-
-      const cont = document.getElementById('segContenedorPedidosActivos');
-      cont.innerHTML = '';
-
-      if (pedidosVendedor.length === 0) {
-        cont.innerHTML = '<p class="text-muted py-2">Este vendedor no posee pedidos activos en el día.</p>';
-        return;
-      }
-
-      pedidosVendedor.forEach(p => {
-        cont.innerHTML += `
-          <div class="card mb-2 p-2 border-start border-3 border-info">
-            <div class="d-flex justify-content-between">
-              <strong>${p.cliente.nombre}</strong>
-              <span class="text-primary font-weight-bold">$${p.total.toFixed(2)}</span>
-            </div>
-            <small class="text-muted">${p.items.length} productos | ${p.fecha}</small>
-          </div>
-        `;
-      });
+      generarPDFBoletas(misPedidos, `Boletas_${usuarioActual.user}.pdf`);
+      generarPDFConsolidado(misPedidos, `Consolidado_Carga_${usuarioActual.user}.pdf`);
     }
 
-    // FUNCIONES DE EXPORTACION ADMIN DESDE SEGUIMIENTO
     function exportarBoletasAdmin() {
-      const selUser = document.getElementById('selectSeguimientoVendedor').value;
-      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
-      const v = usuarios.find(u => u.user === selUser);
-
+      const vUser = document.getElementById('selectSeguimientoVendedor').value;
       const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
-      const misPedidos = pedidos.filter(p => p.vendedorUser === selUser);
+      const pedidosV = pedidos.filter(p => p.vendedor === vUser);
 
-      if (misPedidos.length === 0) return alert("El vendedor no posee pedidos activos.");
-      generarPDFBoletas(misPedidos, v ? v.nombre : selUser);
+      if (pedidosV.length === 0) return alert('El vendedor seleccionado no posee pedidos activos.');
+
+      generarPDFBoletas(pedidosV, `Boletas_Admin_${vUser}.pdf`);
     }
 
     function exportarConsolidadoAdmin() {
-      const selUser = document.getElementById('selectSeguimientoVendedor').value;
-      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
-      const v = usuarios.find(u => u.user === selUser);
-
+      const vUser = document.getElementById('selectSeguimientoVendedor').value;
       const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
-      const misPedidos = pedidos.filter(p => p.vendedorUser === selUser);
+      const pedidosV = pedidos.filter(p => p.vendedor === vUser);
 
-      if (misPedidos.length === 0) return alert("El vendedor no posee pedidos activos.");
-      generarPDFConsolidado(misPedidos, v ? v.nombre : selUser);
+      if (pedidosV.length === 0) return alert('El vendedor seleccionado no posee pedidos activos.');
+
+      generarPDFConsolidado(pedidosV, `Consolidado_Admin_${vUser}.pdf`);
+    }
+
+    function generarPDFBoletas(listaPedidos, nombreArchivo) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      
+      let yOffset = 15;
+      const pageHeight = 285;
+      const boletasPorHojaMax = 3;
+      let contadorBoletasHoja = 0;
+
+      listaPedidos.forEach((p, idx) => {
+        let altoEstimado = 45 + (p.items.length * 6);
+
+        if (contadorBoletasHoja >= boletasPorHojaMax || (yOffset + altoEstimado) > pageHeight) {
+          doc.addPage();
+          yOffset = 15;
+          contadorBoletasHoja = 0;
+        }
+
+        doc.setLineWidth(0.5);
+        doc.rect(10, yOffset, 190, altoEstimado);
+
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text(`BOLETA DE PEDIDO #${idx + 1} - ${p.vendedorNombre.toUpperCase()}`, 14, yOffset + 7);
+        
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Cliente: ${p.cliente.nombre}`, 14, yOffset + 13);
+        doc.text(`Dirección: ${p.cliente.direccion} (${p.cliente.localidad})`, 14, yOffset + 18);
+        doc.text(`Tel: ${p.cliente.telefono || 'S/N'}`, 130, yOffset + 13);
+        doc.text(`Fecha: ${new Date(p.fecha).toLocaleDateString()}`, 130, yOffset + 18);
+
+        doc.line(14, yOffset + 21, 196, yOffset + 21);
+
+        let itemY = yOffset + 26;
+        doc.setFont("helvetica", "bold");
+        doc.text("Cant.", 14, itemY);
+        doc.text("Producto", 30, itemY);
+        doc.text("P. Unit", 130, itemY);
+        doc.text("Subtotal", 165, itemY);
+
+        doc.setFont("helvetica", "normal");
+        p.items.forEach(it => {
+          itemY += 5;
+          doc.text(it.cantidad.toString(), 14, itemY);
+          doc.text(it.nombre.substring(0, 45), 30, itemY);
+          doc.text(`$${it.precio.toFixed(2)}`, 130, itemY);
+          doc.text(`$${it.subtotal.toFixed(2)}`, 165, itemY);
+        });
+
+        itemY += 6;
+        doc.setFont("helvetica", "bold");
+        doc.text(`TOTAL BOLETA: $${p.total.toFixed(2)}`, 140, itemY);
+
+        yOffset += altoEstimado + 8;
+        contadorBoletasHoja++;
+      });
+
+      doc.save(nombreArchivo);
+    }
+
+    function generarPDFConsolidado(listaPedidos, nombreArchivo) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      let mapaResumen = {};
+      let totalMontoConsolidado = 0;
+
+      listaPedidos.forEach(p => {
+        p.items.forEach(it => {
+          if (!mapaResumen[it.nombre]) {
+            mapaResumen[it.nombre] = { cantidad: 0, subtotal: 0 };
+          }
+          mapaResumen[it.nombre].cantidad += it.cantidad;
+          mapaResumen[it.nombre].subtotal += it.subtotal;
+          totalMontoConsolidado += it.subtotal;
+        });
+      });
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("RESUMEN CONSOLIDADO DE CARGA Y DEPÓSITO", 14, 15);
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Vendedor: ${listaPedidos[0]?.vendedorNombre || 'N/A'}`, 14, 22);
+      doc.text(`Fecha Emisión: ${new Date().toLocaleDateString()}`, 14, 27);
+      doc.text(`Total Boletas Procesadas: ${listaPedidos.length}`, 130, 22);
+
+      doc.line(14, 30, 196, 30);
+
+      let y = 37;
+      doc.setFont("helvetica", "bold");
+      doc.text("Producto / Artículo", 14, y);
+      doc.text("Cantidad Total", 110, y);
+      doc.text("Monto Acumulado", 155, y);
+      doc.line(14, y + 2, 196, y + 2);
+
+      y += 7;
+      doc.setFont("helvetica", "normal");
+      Object.keys(mapaResumen).forEach(prodNombre => {
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        const item = mapaResumen[prodNombre];
+        doc.text(prodNombre, 14, y);
+        doc.text(item.cantidad.toString(), 110, y);
+        doc.text(`$${item.subtotal.toFixed(2)}`, 155, y);
+        y += 6;
+      });
+
+      doc.line(14, y, 196, y);
+      y += 8;
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text(`MONTO TOTAL A CARGAR: $${totalMontoConsolidado.toFixed(2)}`, 110, y);
+
+      doc.save(nombreArchivo);
+    }
+
+    // --- REPORTE FINANCIERO: BALANCE SEMANAL CON FILTRO DE FECHAS, RESUMEN POR VENDEDOR Y CONSOLIDADO DE PRODUCTOS ---
+    function generarPDFBalanceSemanal() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      
+      const fechaDesdeStr = document.getElementById('balanceFechaDesde').value;
+      const fechaHastaStr = document.getElementById('balanceFechaHasta').value;
+
+      if (!fechaDesdeStr || !fechaHastaStr) {
+        return alert("Por favor seleccione ambas fechas (Desde y Hasta).");
+      }
+
+      const fDesde = new Date(fechaDesdeStr + "T00:00:00");
+      const fHasta = new Date(fechaHastaStr + "T23:59:59");
+
+      const historial = JSON.parse(localStorage.getItem(KEY_HISTORIAL) || "[]");
+      const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
+
+      // Filtrar cierres dentro del rango
+      const cierresFiltrados = historial.filter(h => {
+        const fCierre = new Date(h.fecha);
+        return fCierre >= fDesde && fCierre <= fHasta;
+      });
+
+      if (cierresFiltrados.length === 0) {
+        return alert("No hay cierres de día registrados en el rango de fechas seleccionado.");
+      }
+
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("REPORTE FINANCIERO - BALANCE SEMANAL", 14, 18);
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Rango auditado: Desde ${fDesde.toLocaleDateString('es-AR')} hasta ${fHasta.toLocaleDateString('es-AR')}`, 14, 25);
+      doc.line(14, 28, 196, 28);
+
+      let yPos = 35;
+      let totalVentaBrutaGlobal = 0;
+      let totalCostoGlobal = 0;
+      let totalComisionesVentaGlobal = 0;
+      let totalComisionesRepartoGlobal = 0;
+      let mapaConsolidadoStock = {};
+
+      // 1. Desglose detallado por cada vendedor
+      usuarios.forEach(u => {
+        const cierresVendedor = cierresFiltrados.filter(h => h.vendedor === u.user);
+        
+        if (cierresVendedor.length > 0) {
+          let ventaBrutaVend = 0;
+          let costoVend = 0;
+
+          cierresVendedor.forEach(cierre => {
+            (cierre.pedidos || []).forEach(ped => {
+              ventaBrutaVend += ped.total || 0;
+              (ped.items || []).forEach(it => {
+                const cItem = (it.costo || 0) * (it.cantidad || 0);
+                costoVend += cItem;
+
+                // Acumulado global de stock por producto
+                if (!mapaConsolidadoStock[it.nombre]) {
+                  mapaConsolidadoStock[it.nombre] = { cantidad: 0, subtotal: 0 };
+                }
+                mapaConsolidadoStock[it.nombre].cantidad += it.cantidad;
+                mapaConsolidadoStock[it.nombre].subtotal += it.subtotal;
+              });
+            });
+          });
+
+          const pctComVenta = u.comision !== undefined ? parseFloat(u.comision) : 5;
+          const pctComReparto = u.repartidor !== undefined ? parseFloat(u.repartidor) : 9;
+
+          const comisionVentaVend = ventaBrutaVend * (pctComVenta / 100);
+          const comisionRepartoVend = ventaBrutaVend * (pctComReparto / 100);
+          const subtotalNetoVendedor = ventaBrutaVend - costoVend - comisionVentaVend - comisionRepartoVend;
+
+          totalVentaBrutaGlobal += ventaBrutaVend;
+          totalCostoGlobal += costoVend;
+          totalComisionesVentaGlobal += comisionVentaVend;
+          totalComisionesRepartoGlobal += comisionRepartoVend;
+
+          if (yPos > 240) {
+            doc.addPage();
+            yPos = 20;
+          }
+
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.text(`VENDEDOR: ${u.nombre.toUpperCase()} (@${u.user})`, 14, yPos);
+          yPos += 5;
+
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "normal");
+          doc.text(`• Venta Bruta: $${ventaBrutaVend.toFixed(2)}`, 18, yPos); yPos += 4;
+          doc.text(`• Costo de Mercadería: $${costoVend.toFixed(2)}`, 18, yPos); yPos += 4;
+          doc.text(`• Comisión Venta (${pctComVenta}%): $${comisionVentaVend.toFixed(2)}`, 18, yPos); yPos += 4;
+          doc.text(`• Comisión Reparto (${pctComReparto}%): $${comisionRepartoVend.toFixed(2)}`, 18, yPos); yPos += 4;
+          
+          doc.setFont("helvetica", "bold");
+          doc.text(`  Subtotal Neto Vendedor: $${subtotalNetoVendedor.toFixed(2)}`, 18, yPos); yPos += 6;
+          
+          doc.setLineDashPattern([1, 1], 0);
+          doc.line(14, yPos - 2, 196, yPos - 2);
+          doc.setLineDashPattern([], 0);
+          yPos += 4;
+        }
+      });
+
+      // 2. Cálculo global de la Ganancia Neta
+      const totalComisionesGlobales = totalComisionesVentaGlobal + totalComisionesRepartoGlobal;
+      const gananciaNetaRestanteGlobal = totalVentaBrutaGlobal - totalCostoGlobal - totalComisionesGlobales;
+
+      if (yPos > 220) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      yPos += 2;
+      doc.setFillColor(240, 240, 240);
+      doc.rect(14, yPos, 182, 44, "F");
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("RESUMEN CONSOLIDADO GENERAL", 18, yPos + 7);
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Venta Bruta Total: $${totalVentaBrutaGlobal.toFixed(2)}`, 18, yPos + 14);
+      doc.text(`Costo Total de Artículos: $${totalCostoGlobal.toFixed(2)}`, 18, yPos + 20);
+      doc.text(`Total Comisiones (Venta + Reparto): $${totalComisionesGlobales.toFixed(2)}`, 18, yPos + 26);
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text(`GANANCIA NETA RESTANTE: $${gananciaNetaRestanteGlobal.toFixed(2)}`, 18, yPos + 36);
+
+      yPos += 50;
+
+      // 3. Cuadro Consolidado de Unidades Vendidas (Resumen de Mercadería Semanal)
+      if (yPos > 220) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("RESUMEN CONSOLIDADO DE MERCADERÍA VENDIDA EN EL PERÍODO", 14, yPos);
+      yPos += 5;
+      
+      doc.setFontSize(9);
+      doc.text("Producto / Artículo", 14, yPos);
+      doc.text("Cant. Total", 130, yPos);
+      doc.text("Monto Total", 165, yPos);
+      doc.line(14, yPos + 2, 196, yPos + 2);
+      yPos += 6;
+
+      doc.setFont("helvetica", "normal");
+      Object.keys(mapaConsolidadoStock).forEach(pNombre => {
+        if (yPos > 275) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const st = mapaConsolidadoStock[pNombre];
+        doc.text(pNombre, 14, yPos);
+        doc.text(st.cantidad.toString(), 130, yPos);
+        doc.text(`$${st.subtotal.toFixed(2)}`, 165, yPos);
+        yPos += 5;
+      });
+
+      doc.save(`Balance_Semanal_${fechaDesdeStr}_a_${fechaHastaStr}.pdf`);
     }
   </script>
 </body>
