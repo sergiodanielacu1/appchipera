@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -21,13 +21,20 @@
     const { useState, useEffect } = React;
 
     const usuariosIniciales = [
-      { id: 0, usuario: 'daniel', clave: '00000', nombre: 'Daniel (Admin)', esAdmin: true },
+      { id: 100, usuario: 'sergio', clave: 'cero', nombre: 'Sergio (Admin General)', esAdmin: true },
+      { id: 101, usuario: 'daniel', clave: '00000', nombre: 'Daniel (Admin)', esAdmin: true },
       { id: 1, usuario: 'emilce', clave: '0100', nombre: 'Emilce', esAdmin: false },
       { id: 2, usuario: 'kevin', clave: '0200', nombre: 'Kevin', esAdmin: false },
       { id: 3, usuario: 'ramona', clave: '0300', nombre: 'Ramona', esAdmin: false }
     ];
 
-    // Helper para garantizar que nunca se sobreescriban clientes o pedidos existentes
+    const catalogoInicial = [
+      { id: 1, nombre: 'Tira de pilas Duracell', precio: 1500, disponible: true },
+      { id: 2, nombre: 'Fideos Tirabuzón 500g', precio: 850, disponible: true },
+      { id: 3, nombre: 'Aceite de Girasol 1L', precio: 2200, disponible: true },
+      { id: 4, nombre: 'Jabón en polvo 800g', precio: 1900, disponible: false }
+    ];
+
     const cargarMemoriaPersistente = (clave, valorDefecto) => {
       try {
         const guardado = localStorage.getItem(clave);
@@ -42,8 +49,9 @@
     };
 
     function App() {
-      // Estado de la memoria con resguardo
+      // Estado Persistente de la Memoria
       const [vendedores, setVendedores] = useState(() => cargarMemoriaPersistente('app_vendedores_persistent', usuariosIniciales));
+      const [catalogo, setCatalogo] = useState(() => cargarMemoriaPersistente('app_catalogo_persistent', catalogoInicial));
       const [clientes, setClientes] = useState(() => cargarMemoriaPersistente('app_clientes_persistent', []));
       const [pedidos, setPedidos] = useState(() => cargarMemoriaPersistente('app_pedidos_persistent', []));
       const [historialDias, setHistorialDias] = useState(() => cargarMemoriaPersistente('app_historial_persistent', []));
@@ -55,13 +63,25 @@
         } catch (e) { return null; }
       });
 
-      // Navegación
-      const [vista, setVista] = useState('clientes'); // 'clientes', 'pedidos', 'historial', 'respaldo'
+      // Vistas e Interfaz
+      const [vista, setVista] = useState('clientes'); // 'clientes', 'pedidos', 'historial', 'vendedores', 'catalogo', 'reportes', 'respaldo'
+      
+      // Filtro de Vista Admin
+      const [vendedorFiltroId, setVendedorFiltroId] = useState('todos');
 
       // Login
       const [inputUser, setInputUser] = useState('');
       const [inputPass, setInputPass] = useState('');
       const [error, setError] = useState('');
+
+      // Form Vendedores (Admin)
+      const [nuevoUser, setNuevoUser] = useState('');
+      const [nuevaClave, setNuevaClave] = useState('');
+      const [nuevoNombre, setNuevoNombre] = useState('');
+
+      // Form Catálogo (Admin)
+      const [artNombre, setArtNombre] = useState('');
+      const [artPrecio, setArtPrecio] = useState('');
 
       // Form Cliente
       const [nombreCli, setNombreCli] = useState('');
@@ -69,16 +89,18 @@
       const [locCli, setLocCli] = useState('');
       const [busqueda, setBusqueda] = useState('');
 
-      // Pedidos
+      // Form Pedido & Autocompletado
       const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
       const [pedidoEditandoId, setPedidoEditandoId] = useState(null);
       const [itemsPedido, setItemsPedido] = useState([]);
       const [prodDesc, setProdDesc] = useState('');
       const [prodCant, setProdCant] = useState('1');
       const [prodPrecio, setProdPrecio] = useState('');
+      const [sugerencias, setSugerencias] = useState([]);
 
-      // Guardar inmediatamente cualquier cambio sin borrar lo previo
+      // Guardar inmediatamente cambios en memoria local
       useEffect(() => { localStorage.setItem('app_vendedores_persistent', JSON.stringify(vendedores)); }, [vendedores]);
+      useEffect(() => { localStorage.setItem('app_catalogo_persistent', JSON.stringify(catalogo)); }, [catalogo]);
       useEffect(() => { localStorage.setItem('app_clientes_persistent', JSON.stringify(clientes)); }, [clientes]);
       useEffect(() => { localStorage.setItem('app_pedidos_persistent', JSON.stringify(pedidos)); }, [pedidos]);
       useEffect(() => { localStorage.setItem('app_historial_persistent', JSON.stringify(historialDias)); }, [historialDias]);
@@ -86,6 +108,30 @@
         if (usuarioActual) localStorage.setItem('app_sesion_activa', JSON.stringify(usuarioActual));
         else localStorage.removeItem('app_sesion_activa');
       }, [usuarioActual]);
+
+      // Autocompletado inteligente de productos
+      const handleInputProdChange = (e) => {
+        const val = e.target.value;
+        setProdDesc(val);
+        if (val.trim().length > 0) {
+          const coincidencias = catalogo.filter(art => 
+            art.nombre.toLowerCase().includes(val.toLowerCase())
+          );
+          setSugerencias(coincidencias);
+        } else {
+          setSugerencias([]);
+        }
+      };
+
+      const seleccionarSugerencia = (art) => {
+        if (!art.disponible) {
+          alert('Este artículo no está disponible actualmente (Sin Stock).');
+          return;
+        }
+        setProdDesc(art.nombre);
+        setProdPrecio(art.precio);
+        setSugerencias([]);
+      };
 
       const handleLogin = (e) => {
         e.preventDefault();
@@ -101,32 +147,66 @@
         }
       };
 
+      const crearVendedor = (e) => {
+        e.preventDefault();
+        if (!nuevoUser || !nuevaClave || !nuevoNombre) return;
+        if (vendedores.some(v => v.usuario.toLowerCase() === nuevoUser.trim().toLowerCase())) {
+          return alert('Ese nombre de usuario ya existe');
+        }
+        const nuevo = {
+          id: Date.now(),
+          usuario: nuevoUser.trim().toLowerCase(),
+          clave: nuevaClave.trim(),
+          nombre: nuevoNombre.trim(),
+          esAdmin: false
+        };
+        setVendedores([...vendedores, nuevo]);
+        setNuevoUser(''); setNuevaClave(''); setNuevoNombre('');
+        alert('Vendedor creado con éxito');
+      };
+
+      const eliminarVendedor = (id) => {
+        if (confirm('¿Eliminar este vendedor?')) {
+          setVendedores(vendedores.filter(v => v.id !== id));
+        }
+      };
+
+      const crearArticuloCatalogo = (e) => {
+        e.preventDefault();
+        if (!artNombre || !artPrecio) return;
+        const nuevo = {
+          id: Date.now(),
+          nombre: artNombre.trim(),
+          precio: Number(artPrecio),
+          disponible: true
+        };
+        setCatalogo([...catalogo, nuevo]);
+        setArtNombre(''); setArtPrecio('');
+      };
+
+      const toggleDisponibilidadArticulo = (id) => {
+        setCatalogo(catalogo.map(art => art.id === id ? { ...art, disponible: !art.disponible } : art));
+      };
+
+      const eliminarArticuloCatalogo = (id) => {
+        if (confirm('¿Eliminar este artículo del catálogo?')) {
+          setCatalogo(catalogo.filter(art => art.id !== id));
+        }
+      };
+
       const guardarCliente = (e) => {
         e.preventDefault();
         if (!nombreCli || !dirCli || !locCli) return;
-        
-        const nuevo = { 
-          id: Date.now(), 
-          nombre: nombreCli.trim(), 
-          direccion: dirCli.trim(), 
-          localidad: locCli.trim(), 
-          vendedorId: usuarioActual.id 
-        };
-
+        const nuevo = { id: Date.now(), nombre: nombreCli.trim(), direccion: dirCli.trim(), localidad: locCli.trim(), vendedorId: usuarioActual.id };
         const listaActualizada = [...clientes, nuevo];
         setClientes(listaActualizada);
-        // Persistir inmediatamente en disco local
-        localStorage.setItem('app_clientes_persistent', JSON.stringify(listaActualizada));
-
         setNombreCli(''); setDirCli(''); setLocCli('');
-        alert('Cliente guardado con éxito en la memoria permanente');
+        alert('Cliente guardado en la memoria permanente');
       };
 
       const eliminarCliente = (id) => {
         if (confirm('¿Eliminar cliente definitivamente?')) {
-          const listaActualizada = clientes.filter(c => c.id !== id);
-          setClientes(listaActualizada);
-          localStorage.setItem('app_clientes_persistent', JSON.stringify(listaActualizada));
+          setClientes(clientes.filter(c => c.id !== id));
         }
       };
 
@@ -142,6 +222,7 @@
         };
         setItemsPedido([...itemsPedido, item]);
         setProdDesc(''); setProdCant('1'); setProdPrecio('');
+        setSugerencias([]);
       };
 
       const eliminarItemPedido = (id) => {
@@ -178,6 +259,7 @@
             id: Date.now(),
             nroBoleta: 'N° ' + String(pedidos.length + 1).padStart(5, '0'),
             fecha: new Date().toLocaleString('es-AR'),
+            fechaIso: new Date().toISOString(),
             vendedorId: usuarioActual.id,
             vendedorNombre: usuarioActual.nombre,
             cliente: clienteSeleccionado,
@@ -188,21 +270,18 @@
           alert('Pedido guardado correctamente');
         }
 
-        setItemsPedido([]);
-        setClienteSeleccionado(null);
-        setPedidoEditandoId(null);
+        setItemsPedido([]); setClienteSeleccionado(null); setPedidoEditandoId(null);
       };
 
       const realizarCierreDeDia = () => {
         const pedidosVendedor = pedidos.filter(p => p.vendedorId === usuarioActual.id);
-        if (pedidosVendedor.length === 0) {
-          return alert('No hay pedidos en el día actual para realizar el cierre.');
-        }
+        if (pedidosVendedor.length === 0) return alert('No hay pedidos en el día actual para realizar el cierre.');
 
-        if (confirm('¿Deseas realizar el CIERRE DE DÍA?\nSe archivará la jornada actual e iniciará un nuevo recorrido.')) {
+        if (confirm('¿Deseas realizar el CIERRE DE DÍA?\nSe archivará la jornada e iniciará un nuevo recorrido.')) {
           const cierre = {
             id: Date.now(),
             fechaCierre: new Date().toLocaleString('es-AR'),
+            fechaIso: new Date().toISOString(),
             vendedorId: usuarioActual.id,
             vendedorNombre: usuarioActual.nombre,
             pedidos: pedidosVendedor,
@@ -211,54 +290,91 @@
 
           setHistorialDias([cierre, ...historialDias]);
           setPedidos(pedidos.filter(p => p.vendedorId !== usuarioActual.id));
-
-          alert('¡Cierre de día completado con éxito! Se ha iniciado un nuevo recorrido.');
+          alert('¡Cierre de día completado con éxito!');
           setVista('historial');
         }
       };
 
-      // EVALUACIÓN INTELIGENTE DE HOJA (PDF)
+      // Cálculo de Rendimiento Mensual por Vendedor
+      const obtenerEstadisticasMensuales = () => {
+        // Combinar pedidos activos y cierres de historial
+        const todasLasVentas = [];
+        
+        historialDias.forEach(c => {
+          c.pedidos.forEach(p => {
+            todasLasVentas.push({ ...p, fechaIso: c.fechaIso || p.fechaIso });
+          });
+        });
+        pedidos.forEach(p => todasLasVentas.push(p));
+
+        const ventasPorVendedor = {};
+
+        vendedores.filter(v => !v.esAdmin).forEach(v => {
+          ventasPorVendedor[v.id] = { nombre: v.nombre, meses: {}, mejorMes: '-', mejorMonto: 0 };
+        });
+
+        todasLasVentas.forEach(v => {
+          if (ventasPorVendedor[v.vendedorId]) {
+            const fecha = new Date(v.fechaIso || Date.now());
+            const claveMes = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+            if (!ventasPorVendedor[v.vendedorId].meses[claveMes]) {
+              ventasPorVendedor[v.vendedorId].meses[claveMes] = 0;
+            }
+            ventasPorVendedor[v.vendedorId].meses[claveMes] += v.total;
+          }
+        });
+
+        // Calcular el mejor mes
+        Object.keys(ventasPorVendedor).forEach(vId => {
+          const vData = ventasPorVendedor[vId];
+          let maxTotal = 0;
+          let mejorM = '-';
+          Object.keys(vData.meses).forEach(m => {
+            if (vData.meses[m] > maxTotal) {
+              maxTotal = vData.meses[m];
+              mejorM = m;
+            }
+          });
+          vData.mejorMes = mejorM;
+          vData.mejorMonto = maxTotal;
+        });
+
+        return ventasPorVendedor;
+      };
+
+      // PDF Generator
       const generarPDFOptimizandoHoja = (listaPedidos = null) => {
-        const pedidosAProcesar = listaPedidos || pedidos.filter(p => p.vendedorId === usuarioActual.id);
-        if (pedidosAProcesar.length === 0) return alert('No hay pedidos para generar el PDF');
+        const pProcesar = listaPedidos || pedidos.filter(p => usuarioActual.esAdmin ? (vendedorFiltroId === 'todos' ? true : p.vendedorId === Number(vendedorFiltroId)) : p.vendedorId === usuarioActual.id);
+        if (pProcesar.length === 0) return alert('No hay pedidos para generar PDF');
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
-        const MAX_Y_PAGINA = 270;
         let currentY = 15;
 
-        const dibujarPedido = (p, startY) => {
-          let y = startY;
+        pProcesar.forEach((p, index) => {
+          const altura = 45 + (p.items.length * 6);
+          if (currentY + altura > 270 && index > 0) { doc.addPage(); currentY = 15; }
 
-          doc.setFontSize(14);
+          doc.setFontSize(13); doc.setFont(undefined, 'bold');
+          doc.text(`COMPROBANTE DE PEDIDO ${p.nroBoleta}`, 15, currentY);
+          doc.setFontSize(9); doc.setFont(undefined, 'normal');
+          doc.text(`Fecha: ${p.fecha} | Vendedor: ${p.vendedorNombre}`, 15, currentY + 5);
+          doc.line(15, currentY + 8, 195, currentY + 8);
+
+          doc.text(`Cliente: ${p.cliente.nombre} | Direc: ${p.cliente.direccion} (${p.cliente.localidad})`, 15, currentY + 14);
+          doc.line(15, currentY + 18, 195, currentY + 18);
+
+          let y = currentY + 24;
           doc.setFont(undefined, 'bold');
-          doc.text(`COMPROBANTE DE PEDIDO ${p.nroBoleta}`, 15, y);
-          doc.setFontSize(9);
-          doc.setFont(undefined, 'normal');
-          doc.text(`Fecha: ${p.fecha} | Vendedor: ${p.vendedorNombre}`, 15, y + 5);
-
-          doc.line(15, y + 8, 195, y + 8);
-
-          doc.text(`Cliente: ${p.cliente.nombre}`, 15, y + 14);
-          doc.text(`Dirección: ${p.cliente.direccion} (${p.cliente.localidad})`, 15, y + 19);
-
-          doc.line(15, y + 22, 195, y + 22);
-
-          y += 28;
-          doc.setFont(undefined, 'bold');
-          doc.text('Cant.', 15, y);
-          doc.text('Descripción / Producto', 35, y);
-          doc.text('P. Unit', 140, y);
-          doc.text('Subtotal', 170, y);
+          doc.text('Cant.', 15, y); doc.text('Producto', 35, y); doc.text('P. Unit', 140, y); doc.text('Subtotal', 170, y);
           doc.setFont(undefined, 'normal');
 
           y += 5;
-          p.items.forEach(item => {
-            doc.text(String(item.cantidad), 15, y);
-            doc.text(item.descripcion, 35, y);
-            doc.text(`$${item.precio}`, 140, y);
-            doc.text(`$${item.subtotal}`, 170, y);
+          p.items.forEach(it => {
+            doc.text(String(it.cantidad), 15, y);
+            doc.text(it.descripcion, 35, y);
+            doc.text(`$${it.precio}`, 140, y);
+            doc.text(`$${it.subtotal}`, 170, y);
             y += 6;
           });
 
@@ -267,147 +383,103 @@
           doc.setFont(undefined, 'bold');
           doc.text(`TOTAL PEDIDO: $${p.total}`, 130, y);
 
-          return y + 12;
-        };
-
-        pedidosAProcesar.forEach((p, index) => {
-          const alturaPedido = 45 + (p.items.length * 6);
-
-          if (currentY + alturaPedido > MAX_Y_PAGINA && index > 0) {
-            doc.addPage();
-            currentY = 15;
-          }
-
-          const finY = dibujarPedido(p, currentY);
-
-          if (finY < MAX_Y_PAGINA - 30 && index < pedidosAProcesar.length - 1) {
-            doc.setDrawColor(180, 180, 180);
-            doc.line(15, finY - 6, 195, finY - 6);
-            doc.setDrawColor(0, 0, 0);
-          }
-
-          currentY = finY;
+          currentY = y + 12;
         });
 
-        doc.save(`Pedidos_${usuarioActual.nombre}_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+        doc.save(`Pedidos_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
       };
 
       const generarPDFConsolidado = (listaPedidos = null) => {
-        const pedidosAProcesar = listaPedidos || pedidos.filter(p => p.vendedorId === usuarioActual.id);
-        if (pedidosAProcesar.length === 0) return alert('No hay ventas para consolidar');
+        const pProcesar = listaPedidos || pedidos.filter(p => usuarioActual.esAdmin ? (vendedorFiltroId === 'todos' ? true : p.vendedorId === Number(vendedorFiltroId)) : p.vendedorId === usuarioActual.id);
+        if (pProcesar.length === 0) return alert('No hay ventas para consolidar');
 
         const consolidado = {};
-        let valorizadoTotal = 0;
+        let totalGeneral = 0;
 
-        pedidosAProcesar.forEach(p => {
-          p.items.forEach(item => {
-            const clave = item.descripcion.trim().toLowerCase();
-            if (!consolidado[clave]) {
-              consolidado[clave] = {
-                descripcion: item.descripcion,
-                cantidad: 0,
-                precio: item.precio,
-                subtotal: 0
-              };
-            }
-            consolidado[clave].cantidad += item.cantidad;
-            consolidado[clave].subtotal += item.subtotal;
-            valorizadoTotal += item.subtotal;
+        pProcesar.forEach(p => {
+          p.items.forEach(it => {
+            const k = it.descripcion.trim().toLowerCase();
+            if (!consolidado[k]) consolidado[k] = { desc: it.descripcion, cant: 0, prec: it.precio, subt: 0 };
+            consolidado[k].cant += it.cantidad;
+            consolidado[k].subt += it.subtotal;
+            totalGeneral += it.subtotal;
           });
         });
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
+        doc.setFontSize(14); doc.setFont(undefined, 'bold');
+        doc.text('CONSOLIDADO GENERAL DE MERCADERÍA', 15, 20);
+        doc.setFontSize(10); doc.setFont(undefined, 'normal');
+        doc.text(`Generado: ${new Date().toLocaleString('es-AR')}`, 15, 27);
+        doc.line(15, 31, 195, 31);
 
-        doc.setFontSize(15);
+        let y = 40;
         doc.setFont(undefined, 'bold');
-        doc.text('RESUMEN CONSOLIDADO DE MERCADERÍA / CARGA', 15, 20);
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
-        doc.text(`Vendedor: ${usuarioActual.nombre}`, 15, 27);
-        doc.text(`Fecha: ${new Date().toLocaleString('es-AR')}`, 15, 32);
-        doc.line(15, 36, 195, 36);
-
-        let y = 45;
-        doc.setFont(undefined, 'bold');
-        doc.text('Producto / Artículo', 15, y);
-        doc.text('Cant. Total', 100, y);
-        doc.text('P. Unitario', 135, y);
-        doc.text('Subtotal', 170, y);
+        doc.text('Producto', 15, y); doc.text('Cant Total', 100, y); doc.text('P. Unit', 135, y); doc.text('Subtotal', 170, y);
         doc.setFont(undefined, 'normal');
 
         y += 6;
         Object.values(consolidado).forEach(art => {
-          doc.text(art.descripcion, 15, y);
-          doc.text(String(art.cantidad), 100, y);
-          doc.text(`$${art.precio}`, 135, y);
-          doc.text(`$${art.subtotal}`, 170, y);
+          doc.text(art.desc, 15, y);
+          doc.text(String(art.cant), 100, y);
+          doc.text(`$${art.prec}`, 135, y);
+          doc.text(`$${art.subt}`, 170, y);
           y += 7;
         });
 
         doc.line(15, y, 195, y);
         y += 10;
         doc.setFont(undefined, 'bold');
-        doc.setFontSize(12);
-        doc.text(`VALORIZADO TOTAL DE MERCADERÍA: $${valorizadoTotal}`, 85, y);
+        doc.text(`VALORIZADO TOTAL: $${totalGeneral}`, 110, y);
 
-        doc.save(`Consolidado_${usuarioActual.nombre}_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+        doc.save(`Consolidado_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
       };
 
-      // EXPORTAR/IMPORTAR RESPALDO LOCAL DE CLIENTES
-      const exportarCopiaDeSeguridad = () => {
-        const datos = {
-          vendedores,
-          clientes,
-          pedidos,
-          historialDias
-        };
+      const exportarCopia = () => {
+        const datos = { vendedores, catalogo, clientes, pedidos, historialDias };
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(datos));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `Respaldo_Clientes_Ventas_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
+        const a = document.createElement('a');
+        a.setAttribute("href", dataStr);
+        a.setAttribute("download", `Respaldo_Ventas_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`);
+        a.click();
       };
 
-      const importarCopiaDeSeguridad = (event) => {
+      const importarCopia = (event) => {
         const reader = new FileReader();
         reader.onload = (e) => {
           try {
-            const contenido = JSON.parse(e.target.result);
-            if (contenido.clientes) setClientes(contenido.clientes);
-            if (contenido.vendedores) setVendedores(contenido.vendedores);
-            if (contenido.pedidos) setPedidos(contenido.pedidos);
-            if (contenido.historialDias) setHistorialDias(contenido.historialDias);
-            alert('¡Copia de seguridad y clientes restaurados con éxito!');
-          } catch (err) {
-            alert('Error al leer el archivo de respaldo');
-          }
+            const res = JSON.parse(e.target.result);
+            if (res.clientes) setClientes(res.clientes);
+            if (res.vendedores) setVendedores(res.vendedores);
+            if (res.catalogo) setCatalogo(res.catalogo);
+            if (res.pedidos) setPedidos(res.pedidos);
+            if (res.historialDias) setHistorialDias(res.historialDias);
+            alert('¡Copia de seguridad restaurada!');
+          } catch (err) { alert('Error al procesar el archivo'); }
         };
-        if (event.target.files[0]) {
-          reader.readAsText(event.target.files[0]);
-        }
+        if (event.target.files[0]) reader.readAsText(event.target.files[0]);
       };
 
-      // LOGIN
+      // LOGIN VISTA
       if (!usuarioActual) {
         return (
           <div className="min-h-screen flex items-center justify-center p-4">
             <div className="bg-slate-800 p-6 rounded-2xl w-full max-w-sm border border-slate-700 shadow-xl space-y-4">
               <h1 className="text-xl font-bold text-center text-white">VentasApp Offline</h1>
+              <p className="text-xs text-slate-400 text-center">Ingresa con tu usuario y clave</p>
               {error && <p className="text-xs text-red-400 text-center font-medium">{error}</p>}
               <form onSubmit={handleLogin} className="space-y-3">
-                <input type="text" placeholder="Usuario (ej: daniel)" value={inputUser} onChange={e=>setInputUser(e.target.value)} autoCapitalize="none" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"/>
+                <input type="text" placeholder="Usuario" value={inputUser} onChange={e=>setInputUser(e.target.value)} autoCapitalize="none" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"/>
                 <input type="password" placeholder="Contraseña" value={inputPass} onChange={e=>setInputPass(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"/>
-                <button className="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-2.5 rounded-xl text-sm">Ingresar</button>
+                <button className="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-2.5 rounded-xl text-sm text-white">Ingresar</button>
               </form>
             </div>
           </div>
         );
       }
 
-      // FORMULARIO DE TOMAR / MODIFICAR PEDIDO
+      // FORMULARIO DE TOMAR / EDITAR PEDIDO
       if (clienteSeleccionado) {
         const totalActual = itemsPedido.reduce((acc, i) => acc + i.subtotal, 0);
         return (
@@ -417,20 +489,38 @@
                 <h2 className="font-bold text-indigo-400 text-sm">{pedidoEditandoId ? 'Modificar Pedido' : 'Nuevo Pedido'}</h2>
                 <p className="text-xs text-white">{clienteSeleccionado.nombre}</p>
               </div>
-              <button onClick={() => { setClienteSeleccionado(null); setPedidoEditandoId(null); }} className="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Volver</button>
+              <button onClick={() => { setClienteSeleccionado(null); setPedidoEditandoId(null); setSugerencias([]); }} className="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Volver</button>
             </div>
 
-            <form onSubmit={agregarProducto} className="bg-slate-800 p-3 rounded-xl space-y-2 border border-slate-700">
-              <input type="text" placeholder="Producto / Descripción" value={prodDesc} onChange={e=>setProdDesc(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+            <form onSubmit={agregarProducto} className="bg-slate-800 p-3 rounded-xl space-y-2 border border-slate-700 relative">
+              <div className="relative">
+                <input type="text" placeholder="Escribe el producto (ej: tira...)" value={prodDesc} onChange={handleInputProdChange} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+                
+                {/* Desplegable de Autocompletado */}
+                {sugerencias.length > 0 && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
+                    {sugerencias.map(art => (
+                      <div key={art.id} onClick={() => seleccionarSugerencia(art)} className={`p-2.5 text-xs flex justify-between items-center cursor-pointer border-b border-slate-700/50 hover:bg-slate-700 ${!art.disponible ? 'opacity-50 bg-slate-900' : ''}`}>
+                        <div>
+                          <span className="font-bold text-white">{art.nombre}</span>
+                          {!art.disponible && <span className="text-[10px] text-red-400 ml-2 font-bold">(SIN STOCK)</span>}
+                        </div>
+                        <span className="text-emerald-400 font-bold">${art.precio}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-2">
                 <input type="number" placeholder="Cant." value={prodCant} onChange={e=>setProdCant(e.target.value)} className="w-1/3 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
                 <input type="number" placeholder="Precio ($)" value={prodPrecio} onChange={e=>setProdPrecio(e.target.value)} className="w-2/3 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
               </div>
-              <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg">Agregar Producto</button>
+              <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">Agregar Producto</button>
             </form>
 
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-400">Detalle:</h4>
+              <h4 className="text-xs font-bold text-slate-400">Detalle del Pedido:</h4>
               {itemsPedido.map(item => (
                 <div key={item.id} className="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex justify-between items-center text-xs">
                   <div>
@@ -454,29 +544,51 @@
         );
       }
 
-      const pedidosDelVendedor = pedidos.filter(p => usuarioActual.esAdmin || p.vendedorId === usuarioActual.id);
-      const cierresDelVendedor = historialDias.filter(h => usuarioActual.esAdmin || h.vendedorId === usuarioActual.id);
+      // Filtrado para Vendedor / Admin
+      const pedidosFiltrados = pedidos.filter(p => {
+        if (!usuarioActual.esAdmin) return p.vendedorId === usuarioActual.id;
+        if (vendedorFiltroId === 'todos') return true;
+        return p.vendedorId === Number(vendedorFiltroId);
+      });
+
+      const cierresFiltrados = historialDias.filter(h => {
+        if (!usuarioActual.esAdmin) return h.vendedorId === usuarioActual.id;
+        if (vendedorFiltroId === 'todos') return true;
+        return h.vendedorId === Number(vendedorFiltroId);
+      });
+
       const clientesFiltrados = clientes.filter(c => 
         c.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
         c.direccion.toLowerCase().includes(busqueda.toLowerCase()) ||
         c.localidad.toLowerCase().includes(busqueda.toLowerCase())
       );
 
+      const statsMensuales = obtenerEstadisticasMensuales();
+
       return (
         <div className="max-w-md mx-auto p-4 space-y-4">
+          {/* Cabecera */}
           <div className="flex justify-between items-center border-b border-slate-800 pb-3">
             <div>
               <h2 className="font-bold text-white">{usuarioActual.nombre}</h2>
-              <span className="text-xs text-indigo-400">{usuarioActual.esAdmin ? 'Administrador' : 'Vendedor'}</span>
+              <span className="text-xs text-indigo-400 font-bold">{usuarioActual.esAdmin ? 'Administrador General' : 'Vendedor'}</span>
             </div>
             <button onClick={() => setUsuarioActual(null)} className="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Salir</button>
           </div>
 
-          {/* Menú Superior de Navegación */}
-          <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
-            <button onClick={() => setVista('clientes')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${vista === 'clientes' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Clientes ({clientes.length})</button>
-            <button onClick={() => setVista('pedidos')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${vista === 'pedidos' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Día ({pedidosDelVendedor.length})</button>
-            <button onClick={() => setVista('historial')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${vista === 'historial' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Historial</button>
+          {/* Menú de Navegación */}
+          <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs overflow-x-auto gap-1">
+            <button onClick={() => setVista('clientes')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'clientes' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Clientes ({clientes.length})</button>
+            <button onClick={() => setVista('pedidos')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'pedidos' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Día ({pedidosFiltrados.length})</button>
+            <button onClick={() => setVista('historial')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'historial' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Historial</button>
+            
+            {usuarioActual.esAdmin && (
+              <>
+                <button onClick={() => setVista('vendedores')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'vendedores' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Vendedores</button>
+                <button onClick={() => setVista('catalogo')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'catalogo' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Artículos</button>
+                <button onClick={() => setVista('reportes')} className={`px-3 py-2 rounded-lg font-bold transition-colors whitespace-nowrap ${vista === 'reportes' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Meses📊</button>
+              </>
+            )}
             <button onClick={() => setVista('respaldo')} className={`px-2 py-2 rounded-lg font-bold transition-colors ${vista === 'respaldo' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>⚙️</button>
           </div>
 
@@ -488,34 +600,30 @@
                 <input type="text" placeholder="Nombre / Razón Social" value={nombreCli} onChange={e=>setNombreCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
                 <input type="text" placeholder="Dirección" value={dirCli} onChange={e=>setDirCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
                 <input type="text" placeholder="Localidad" value={locCli} onChange={e=>setLocCli(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
-                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg">Guardar Cliente (Memoria Permanente)</button>
+                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">Guardar Cliente</button>
               </form>
 
               <div className="space-y-2">
-                <h4 className="text-xs font-bold text-slate-400">Buscar Cliente Guardado:</h4>
-                <input type="text" placeholder="Buscar por nombre, localidad..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} className="w-full bg-slate-800 text-xs p-2.5 rounded-xl border border-slate-700 text-white"/>
+                <h4 className="text-xs font-bold text-slate-400">Buscar Cliente:</h4>
+                <input type="text" placeholder="Nombre, localidad..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} className="w-full bg-slate-800 text-xs p-2.5 rounded-xl border border-slate-700 text-white"/>
 
                 <div className="space-y-2 pt-1">
-                  {clientesFiltrados.length === 0 ? (
-                    <div className="text-center text-xs text-slate-500 py-4">No hay clientes guardados.</div>
-                  ) : (
-                    clientesFiltrados.map(c => (
-                      <div key={c.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
-                        <div>
-                          <div className="font-bold text-xs text-white">{c.nombre}</div>
-                          <div className="text-[11px] text-slate-400">📍 {c.direccion} - <strong className="text-indigo-300">{c.localidad}</strong></div>
-                        </div>
-                        <div className="flex gap-2 pt-1">
-                          <button onClick={() => iniciarNuevoPedido(c)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-[11px] font-bold py-1.5 rounded-lg">
-                            + Tomar Pedido
-                          </button>
-                          <button onClick={() => eliminarCliente(c.id)} className="bg-red-500/20 text-red-400 text-[11px] px-2.5 py-1.5 rounded-lg border border-red-500/30">
-                            Eliminar
-                          </button>
-                        </div>
+                  {clientesFiltrados.map(c => (
+                    <div key={c.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
+                      <div>
+                        <div className="font-bold text-xs text-white">{c.nombre}</div>
+                        <div className="text-[11px] text-slate-400">📍 {c.direccion} - <strong className="text-indigo-300">{c.localidad}</strong></div>
                       </div>
-                    ))
-                  )}
+                      <div className="flex gap-2 pt-1">
+                        <button onClick={() => iniciarNuevoPedido(c)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-[11px] font-bold py-1.5 rounded-lg text-white">
+                          + Tomar Pedido
+                        </button>
+                        <button onClick={() => eliminarCliente(c.id)} className="bg-red-500/20 text-red-400 text-[11px] px-2.5 py-1.5 rounded-lg border border-red-500/30">
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -524,8 +632,20 @@
           {/* VISTA DÍA ACTIVO */}
           {vista === 'pedidos' && (
             <div className="space-y-4">
+              {usuarioActual.esAdmin && (
+                <div className="bg-slate-800 p-2.5 rounded-xl border border-slate-700 text-xs flex justify-between items-center">
+                  <span className="font-bold text-slate-300">Supervisar Vendedor:</span>
+                  <select value={vendedorFiltroId} onChange={e=>setVendedorFiltroId(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white">
+                    <option value="todos">Todos los vendedores</option>
+                    {vendedores.filter(v => !v.esAdmin).map(v => (
+                      <option key={v.id} value={v.id}>{v.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
-                <h3 className="font-bold text-amber-400 text-xs">🏁 Acciones del Recorrido Actual</h3>
+                <h3 className="font-bold text-amber-400 text-xs">🏁 Acciones del Recorrido</h3>
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={() => generarPDFOptimizandoHoja()} className="bg-indigo-600 hover:bg-indigo-500 text-[11px] font-bold py-2 rounded-lg text-white">
                     📄 Exportar PDF
@@ -534,22 +654,24 @@
                     📊 Consolidado ($)
                   </button>
                 </div>
-                <button onClick={realizarCierreDeDia} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-2.5 rounded-lg text-white">
-                  🔒 Cierre de Día / Iniciar Nuevo Recorrido
-                </button>
+                {!usuarioActual.esAdmin && (
+                  <button onClick={realizarCierreDeDia} className="w-full bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-2.5 rounded-lg text-white">
+                    🔒 Cierre de Día / Iniciar Nuevo Recorrido
+                  </button>
+                )}
               </div>
 
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-slate-400">Pedidos del Recorrido:</h4>
-                {pedidosDelVendedor.length === 0 ? (
-                  <div className="text-center text-xs text-slate-500 py-6">No hay pedidos tomados en el recorrido actual.</div>
+                {pedidosFiltrados.length === 0 ? (
+                  <div className="text-center text-xs text-slate-500 py-6">No hay pedidos tomados en el recorrido.</div>
                 ) : (
-                  pedidosDelVendedor.map(p => (
+                  pedidosFiltrados.map(p => (
                     <div key={p.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
                       <div className="flex justify-between items-start">
                         <div>
                           <div className="font-bold text-xs text-white">{p.cliente.nombre}</div>
-                          <div className="text-[10px] text-slate-400">{p.nroBoleta} - {p.fecha}</div>
+                          <div className="text-[10px] text-slate-400">{p.nroBoleta} - {p.fecha} ({p.vendedorNombre})</div>
                         </div>
                         <span className="font-bold text-emerald-400 text-xs">${p.total}</span>
                       </div>
@@ -578,19 +700,19 @@
             </div>
           )}
 
-          {/* VISTA HISTORIAL */}
+          {/* VISTA HISTORIAL DE CIERRES */}
           {vista === 'historial' && (
             <div className="space-y-4">
               <h3 className="font-bold text-indigo-400 text-sm">Historial de Recorridos Cerrados</h3>
-              {cierresDelVendedor.length === 0 ? (
-                <div className="text-center text-xs text-slate-500 py-6">No hay cierres de día registrados aún.</div>
+              {cierresFiltrados.length === 0 ? (
+                <div className="text-center text-xs text-slate-500 py-6">No hay cierres registrados.</div>
               ) : (
-                cierresDelVendedor.map(c => (
+                cierresFiltrados.map(c => (
                   <div key={c.id} className="bg-slate-800 p-3.5 rounded-xl border border-slate-700 space-y-2.5">
                     <div className="flex justify-between items-center border-b border-slate-700/60 pb-2">
                       <div>
                         <div className="font-bold text-xs text-white">Cierre: {c.fechaCierre}</div>
-                        <div className="text-[10px] text-slate-400">{c.pedidos.length} Pedidos de Venta</div>
+                        <div className="text-[10px] text-slate-400">Vendedor: {c.vendedorNombre} ({c.pedidos.length} Pedidos)</div>
                       </div>
                       <span className="text-sm font-bold text-emerald-400">${c.totalVendido}</span>
                     </div>
@@ -609,37 +731,38 @@
             </div>
           )}
 
-          {/* VISTA RESPALDO / CONFIGURACIÓN DE MEMORIA */}
-          {vista === 'respaldo' && (
+          {/* VISTA GESTIÓN DE VENDEDORES (ADMIN) */}
+          {vista === 'vendedores' && usuarioActual.esAdmin && (
             <div className="space-y-4">
-              <h3 className="font-bold text-indigo-400 text-sm">⚙️ Copia de Seguridad y Memoria</h3>
-              <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3">
-                <p className="text-xs text-slate-300">
-                  Puedes descargar una copia completa de tus clientes guardados para no perder nada si cambias de teléfono o deseas compartir la lista con otro vendedor.
-                </p>
-                
-                <button onClick={exportarCopiaDeSeguridad} className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">
-                  📥 Descargar Copia de Clientes (JSON)
-                </button>
-
-                <div className="border-t border-slate-700 pt-3">
-                  <label className="block text-xs text-slate-400 mb-1">Restaurar Copia de Seguridad:</label>
-                  <input type="file" accept=".json" onChange={importarCopiaDeSeguridad} className="w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-slate-700 file:text-white"/>
+              <h3 className="font-bold text-indigo-400 text-sm">Gestión de Vendedores</h3>
+              <form onSubmit={crearVendedor} className="bg-slate-800 p-3.5 rounded-xl space-y-2 border border-slate-700">
+                <input type="text" placeholder="Nombre completo (ej: Juan Pérez)" value={nuevoNombre} onChange={e=>setNuevoNombre(e.target.value)} className="w-full bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Usuario" value={nuevoUser} onChange={e=>setNuevoUser(e.target.value)} autoCapitalize="none" className="w-1/2 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
+                  <input type="text" placeholder="Contraseña" value={nuevaClave} onChange={e=>setNuevaClave(e.target.value)} className="w-1/2 bg-slate-900 text-xs p-2.5 rounded-lg border border-slate-700 text-white"/>
                 </div>
+                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-lg text-white">+ Crear Nuevo Vendedor</button>
+              </form>
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-400">Listado de Vendedores:</h4>
+                {vendedores.map(v => (
+                  <div key={v.id} className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center text-xs">
+                    <div>
+                      <div className="font-bold text-white">{v.nombre} {v.esAdmin && <span className="text-[10px] text-amber-400 font-bold">(Admin)</span>}</div>
+                      <div className="text-[10px] text-slate-400">User: <strong className="text-slate-200">{v.usuario}</strong> | Clave: <strong className="text-slate-200">{v.clave}</strong></div>
+                    </div>
+                    {!v.esAdmin && (
+                      <button onClick={() => eliminarVendedor(v.id)} className="bg-red-500/20 text-red-400 text-[10px] px-2.5 py-1.5 rounded-lg border border-red-500/30">
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
-        </div>
-      );
-    }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW error:', err));
-      });
-    }
-  </script>
-</body>
-</html>
+          {/* VISTA CATÁLOGO Y STOCK (ADMIN) */}
+          {vista === 'catalogo' && usuarioActual.esAdmin && (
+            <div className="space-y
