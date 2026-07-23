@@ -393,45 +393,26 @@
         ];
         localStorage.setItem(KEY_CLIENTES, JSON.stringify(clientesIniciales));
       }
-      
       if (!localStorage.getItem(KEY_ARTICULOS)) {
+        const articulosIniciales = [
+          { id: '00004', nombre: 'ROSAMONTE DESPALADA 500g.', costo: 1452.00, margen: 25, precio: 1815.00, activo: true, protegido: true },
+          { id: '00005', nombre: 'DOÑA IRMA SEMOLADO N3 x 500g', costo: 1050.00, margen: 25, precio: 1312.50, activo: true, protegido: true },
+          { id: '00010', nombre: 'SOL PAMPEANO AVE MARIA x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
+          { id: '00024', nombre: 'DISPLAY JUGO RINDE DOS MANZANA', costo: 354.99, margen: 25, precio: 443.74, activo: true, protegido: true },
+          { id: '00039', nombre: 'TUTUCA BURBUJA x 80g', costo: 631.99, margen: 25, precio: 789.99, activo: true, protegido: true },
+          { id: '00049', nombre: 'PISINGALLO AGROMAR x 400g', costo: 327.50, margen: 25, precio: 409.38, activo: true, protegido: true },
+          { id: '00062', nombre: 'SAL FINA TRESAL x 500g', costo: 408.00, margen: 25, precio: 510.00, activo: true, protegido: true },
+          { id: '00118', nombre: 'YERBA NATURA VERDE OSCURA x 500g', costo: 1095.00, margen: 25, precio: 1368.75, activo: true, protegido: true },
+          { id: '00916', nombre: 'MONTELIRIO NIDOS N°1 x 500g', costo: 1616.00, margen: 25, precio: 2020.00, activo: true, protegido: true }
+          // Puedes seguir agregando el resto de tus artículos aquí respetando este formato
+        ];
+        localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulosIniciales));
+      }
 
-        const articulosIniciales = [
-
-          { id: '00004', nombre: 'ROSAMONTE DESPALADA 500g.', costo: 1452.00, margen: 25, precio: 1815.00, activo: true, protegido: true },
-
-          { id: '00005', nombre: 'DOÑA IRMA SEMOLADO N3 x 500g', costo: 1050.00, margen: 25, precio: 1312.50, activo: true, protegido: true },
-
-          { id: '00010', nombre: 'SOL PAMPEANO AVE MARIA x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
-
-          { id: '00024', nombre: 'DISPLAY JUGO RINDE DOS MANZANA', costo: 354.99, margen: 25, precio: 443.74, activo: true, protegido: true },
-
-          { id: '00039', nombre: 'TUTUCA BURBUJA x 80g', costo: 631.99, margen: 25, precio: 789.99, activo: true, protegido: true },
-
-          { id: '00049', nombre: 'PISINGALLO AGROMAR x 400g', costo: 327.50, margen: 25, precio: 409.38, activo: true, protegido: true },
-
-          { id: '00062', nombre: 'SAL FINA TRESAL x 500g', costo: 408.00, margen: 25, precio: 510.00, activo: true, protegido: true },
-
-          { id: '00118', nombre: 'YERBA NATURA VERDE OSCURA x 500g', costo: 1095.00, margen: 25, precio: 1368.75, activo: true, protegido: true },
-
-          { id: '00916', nombre: 'MONTELIRIO NIDOS N°1 x 500g', costo: 1616.00, margen: 25, precio: 2020.00, activo: true, protegido: true }
-
-          // Puedes seguir agregando el resto de tus artículos aquí respetando este formato
-
-        ];
-
-        localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulosIniciales));
-
-      }
-
-
-
-      if (!localStorage.getItem(KEY_PEDIDOS))localStorage.setItem(KEY_PEDIDOS,JSON.stringify([]));
-
-      if (!localStorage.getItem(KEY_HISTORIAL))localStorage.setItem(KEY_HISTORIAL,JSON.stringify([]));
-
-      if (!localStorage.getItem(KEY_COLA_OFFLINE))localStorage.setItem(KEY_COLA_OFFLINE,JSON.stringify([]));
-
+      if (!localStorage.getItem(KEY_PEDIDOS)) localStorage.setItem(KEY_PEDIDOS, JSON.stringify([]));
+      if (!localStorage.getItem(KEY_HISTORIAL)) localStorage.setItem(KEY_HISTORIAL, JSON.stringify([]));
+      if (!localStorage.getItem(KEY_COLA_OFFLINE)) localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify([]));
+    }
     // --- MANEJO DE ESTADO ONLINE / OFFLINE ---
     function configurarMonitoreoConexion() {
       window.addEventListener('online', actualizarEstadoConexion);
