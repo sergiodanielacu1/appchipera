@@ -393,7 +393,7 @@
         ];
         localStorage.setItem(KEY_CLIENTES, JSON.stringify(clientesIniciales));
       }
-      if (!localStorage.getItem(KEY_ARTICULOS)) {
+    if (!localStorage.getItem(KEY_ARTICULOS)) {
     const articulosIniciales = [
       { id: '00001', nombre: 'DOÑA IRMA SEMOLADO N3 x 500g', costo: 1050.00, margen: 25, precio: 1312.50, activo: true, protegido: true },
       { id: '00002', nombre: 'DOÑA IRMA SEMOLADO VERDE x 500g', costo: 1050.00, margen: 25, precio: 1312.50, activo: true, protegido: true },
@@ -449,7 +449,7 @@
     localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulosIniciales));
 }
 
-if (!localStorage.getItem(KEY_PEDIDOS)) localStorage.setItem(KEY_PEDIDOS, JSON.stringify([])); 
+if (!localStorage.getItem(KEY_PEDIDOS)) localStorage.setItem(KEY_PEDIDOS, JSON.stringify([]));
 if (!localStorage.getItem(KEY_HISTORIAL)) localStorage.setItem(KEY_HISTORIAL, JSON.stringify([]));
 if (!localStorage.getItem(KEY_COLA_OFFLINE)) localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify([]));
     // --- MANEJO DE ESTADO ONLINE / OFFLINE ---
