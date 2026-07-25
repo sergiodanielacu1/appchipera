@@ -57,31 +57,17 @@
       <div id="panelPrincipal" style="display: none;">
         
         <div id="offlineAlert" class="alert alert-warning alert-dismissible fade show d-none" role="alert">
-          <i class="fa-solid fa-triangle-exclamation me-2"></i><strong>Modo Offline Activo:</strong> Los pedidos guardados se almacenarán localmente en el dispositivo y se sincronización al recuperar la conexión.
+          <i class="fa-solid fa-triangle-exclamation me-2"></i><strong>Modo Offline Activo:</strong> Los pedidos guardados se almacenarán localmente en el dispositivo.
         </div>
 
         <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist">
-          <li class="nav-item">
-            <button class="nav-link active" id="tab-pedidos-btn" onclick="cambiarSolapa('pedidos')"><i class="fa-solid fa-cart-shopping me-1"></i>Tomar Pedido</button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" id="tab-clientes-btn" onclick="cambiarSolapa('clientes')"><i class="fa-solid fa-users me-1"></i>Clientes</button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" id="tab-dia-btn" onclick="cambiarSolapa('dia')"><i class="fa-solid fa-calendar-day me-1"></i>Día Activo / Cierre</button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" id="tab-historial-btn" onclick="cambiarSolapa('historial')"><i class="fa-solid fa-clock-rotate-left me-1"></i>Historial Cierres</button>
-          </li>
-          <li class="nav-item solo-admin">
-            <button class="nav-link" id="tab-seguimiento-btn" onclick="cambiarSolapa('seguimiento')"><i class="fa-solid fa-chart-line me-1"></i>Seguimiento Vendedores</button>
-          </li>
-          <li class="nav-item solo-admin">
-            <button class="nav-link" id="tab-vendedores-btn" onclick="cambiarSolapa('vendedores')"><i class="fa-solid fa-user-gear me-1"></i>Gestión Vendedores</button>
-          </li>
-          <li class="nav-item solo-admin">
-            <button class="nav-link" id="tab-articulos-btn" onclick="cambiarSolapa('articulos')"><i class="fa-solid fa-boxes-stacked me-1"></i>Catálogo Productos</button>
-          </li>
+          <li class="nav-item"><button class="nav-link active" id="tab-pedidos-btn" onclick="cambiarSolapa('pedidos')"><i class="fa-solid fa-cart-shopping me-1"></i>Tomar Pedido</button></li>
+          <li class="nav-item"><button class="nav-link" id="tab-clientes-btn" onclick="cambiarSolapa('clientes')"><i class="fa-solid fa-users me-1"></i>Clientes</button></li>
+          <li class="nav-item"><button class="nav-link" id="tab-dia-btn" onclick="cambiarSolapa('dia')"><i class="fa-solid fa-calendar-day me-1"></i>Día Activo / Cierre</button></li>
+          <li class="nav-item"><button class="nav-link" id="tab-historial-btn" onclick="cambiarSolapa('historial')"><i class="fa-solid fa-clock-rotate-left me-1"></i>Historial</button></li>
+          <li class="nav-item solo-admin"><button class="nav-link" id="tab-seguimiento-btn" onclick="cambiarSolapa('seguimiento')"><i class="fa-solid fa-chart-line me-1"></i>Seguimiento</button></li>
+          <li class="nav-item solo-admin"><button class="nav-link" id="tab-vendedores-btn" onclick="cambiarSolapa('vendedores')"><i class="fa-solid fa-user-gear me-1"></i>Vendedores</button></li>
+          <li class="nav-item solo-admin"><button class="nav-link" id="tab-articulos-btn" onclick="cambiarSolapa('articulos')"><i class="fa-solid fa-boxes-stacked me-1"></i>Catálogo</button></li>
         </ul>
 
         <!-- SOLAPA PEDIDOS -->
@@ -231,7 +217,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h5 class="mb-0 text-dark"><i class="fa-solid fa-scale-balanced me-2"></i>Reporte Financiero Semanal</h5>
-                <small class="text-muted">Genera un informe detallado por vendedor con la venta bruta, costos de productos, comisiones asignadas y ganancia neta restante.</small>
+                <small class="text-muted">Genera un informe detallado por vendedor con la venta bruta, costos de productos, comisiones y ganancia neta.</small>
               </div>
               <button class="btn btn-success btn-lg" onclick="generarPDFBalanceSemanal()"><i class="fa-solid fa-file-pdf me-2"></i>Balance Semanal</button>
             </div>
@@ -293,11 +279,28 @@
 
         <!-- SOLAPA ARTICULOS (ADMIN) -->
         <div id="solapa-articulos" class="tab-content-item solo-admin" style="display: none;">
+          
+          <!-- Botonera Importar/Exportar -->
+          <div class="card p-3 mb-3 bg-light">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="mb-0"><i class="fa-solid fa-file-lines me-2"></i>Gestión Masiva de Precios (Archivo TXT)</h6>
+                <small class="text-muted">Sube tu lista (Código;Nombre;Costo;Margen;Activo) o descarga la actual.</small>
+              </div>
+              <div class="d-flex gap-2">
+                <input type="file" id="inputArchivoTXT" accept=".txt,.csv" style="display: none;" onchange="procesarArchivoTXT(event)">
+                <button class="btn btn-outline-primary" onclick="document.getElementById('inputArchivoTXT').click()"><i class="fa-solid fa-upload me-1"></i>Importar TXT</button>
+                <button class="btn btn-outline-success" onclick="exportarArticulosTXT()"><i class="fa-solid fa-download me-1"></i>Descargar TXT</button>
+              </div>
+            </div>
+          </div>
+
           <div class="row">
             <div class="col-md-4 mb-3">
               <div class="card p-3">
                 <h5 id="tituloFormArticulo"><i class="fa-solid fa-box me-2"></i>Nuevo Producto</h5>
                 <input type="hidden" id="artIdEdit">
+                <div class="mb-2"><label class="form-label">Código (ID)</label><input type="text" id="artCodigo" class="form-control" placeholder="Ej: 00004"></div>
                 <div class="mb-2"><label class="form-label">Descripción Producto</label><input type="text" id="artNombre" class="form-control"></div>
                 <div class="mb-2"><label class="form-label">Costo ($)</label><input type="number" id="artCosto" class="form-control" step="0.01" oninput="calcularPrecioFinalForm()"></div>
                 <div class="mb-2"><label class="form-label">Margen Ganancia (%)</label><input type="number" id="artMargen" class="form-control" step="0.01" value="25" oninput="calcularPrecioFinalForm()"></div>
@@ -311,7 +314,7 @@
                 <div class="table-responsive">
                   <table class="table table-hover align-middle">
                     <thead>
-                      <tr><th>Producto</th><th>Costo</th><th>Margen %</th><th>P. Venta Final</th><th>Estado</th><th>Acciones</th></tr>
+                      <tr><th>Código</th><th>Producto</th><th>Costo</th><th>Margen %</th><th>P. Venta</th><th>Estado</th><th>Acciones</th></tr>
                     </thead>
                     <tbody id="tablaArticulosBody"></tbody>
                   </table>
@@ -340,7 +343,7 @@
     let pedidoTemporal = [];
     let articuloSeleccionadoId = null;
 
-    // --- INICIALIZACIÓN DE LA APLICACIÓN ---
+    // --- INICIALIZACIÓN ---
     window.addEventListener('DOMContentLoaded', () => {
       inicializarBaseDeDatos();
       configurarMonitoreoConexion();
@@ -369,15 +372,15 @@
 
       if (!localStorage.getItem(KEY_ARTICULOS)) {
         const articulosIniciales = [
-          { id: '00004', nombre: 'ROSAMONTE DESPALADA 500g.', costo: 1452.00, margen: 25, precio: 1815.00, activo: true, protegido: true },
-          { id: '00005', nombre: 'DOÑA IRMA SEMOLADO N3 x 500g', costo: 1050.00, margen: 25, precio: 1312.50, activo: true, protegido: true },
-          { id: '00010', nombre: 'SOL PAMPEANO AVE MARIA x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true, protegido: true },
-          { id: '00024', nombre: 'DISPLAY JUGO RINDE DOS MANZANA', costo: 354.99, margen: 25, precio: 443.74, activo: true, protegido: true },
-          { id: '00039', nombre: 'TUTUCA BURBUJA x 80g', costo: 631.99, margen: 25, precio: 789.99, activo: true, protegido: true },
-          { id: '00049', nombre: 'PISINGALLO AGROMAR x 400g', costo: 327.50, margen: 25, precio: 409.38, activo: true, protegido: true },
-          { id: '00062', nombre: 'SAL FINA TRESAL x 500g', costo: 408.00, margen: 25, precio: 510.00, activo: true, protegido: true },
-          { id: '00118', nombre: 'YERBA NATURA VERDE OSCURA x 500g', costo: 1095.00, margen: 25, precio: 1368.75, activo: true, protegido: true },
-          { id: '00916', nombre: 'MONTELIRIO NIDOS N°1 x 500g', costo: 1616.00, margen: 25, precio: 2020.00, activo: true, protegido: true }
+          { id: '00004', nombre: 'ROSAMONTE DESPALADA 500g.', costo: 1452.00, margen: 25, precio: 1815.00, activo: true },
+          { id: '00005', nombre: 'DOÑA IRMA SEMOLADO N3 x 500g', costo: 1050.00, margen: 25, precio: 1312.50, activo: true },
+          { id: '00010', nombre: 'SOL PAMPEANO AVE MARIA x 500g', costo: 665.54, margen: 25, precio: 831.93, activo: true },
+          { id: '00024', nombre: 'DISPLAY JUGO RINDE DOS MANZANA', costo: 354.99, margen: 25, precio: 443.74, activo: true },
+          { id: '00039', nombre: 'TUTUCA BURBUJA x 80g', costo: 631.99, margen: 25, precio: 789.99, activo: true },
+          { id: '00049', nombre: 'PISINGALLO AGROMAR x 400g', costo: 327.50, margen: 25, precio: 409.38, activo: true },
+          { id: '00062', nombre: 'SAL FINA TRESAL x 500g', costo: 408.00, margen: 25, precio: 510.00, activo: true },
+          { id: '00118', nombre: 'YERBA NATURA VERDE OSCURA x 500g', costo: 1095.00, margen: 25, precio: 1368.75, activo: true },
+          { id: '00916', nombre: 'MONTELIRIO NIDOS N°1 x 500g', costo: 1616.00, margen: 25, precio: 2020.00, activo: true }
         ];
         localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulosIniciales));
       }
@@ -387,7 +390,7 @@
       if (!localStorage.getItem(KEY_COLA_OFFLINE)) localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify([]));
     }
 
-    // --- MANEJO DE ESTADO ONLINE / OFFLINE ---
+    // --- ESTADO ONLINE / OFFLINE ---
     function configurarMonitoreoConexion() {
       window.addEventListener('online', actualizarEstadoConexion);
       window.addEventListener('offline', actualizarEstadoConexion);
@@ -413,12 +416,12 @@
     function sincronizarDatosPendientes() {
       const cola = JSON.parse(localStorage.getItem(KEY_COLA_OFFLINE) || "[]");
       if (cola.length > 0) {
-        console.log("Sincronizando datos pendientes:", cola);
+        console.log("Sincronizando datos pendientes...", cola);
         localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify([]));
       }
     }
 
-    // --- AUTENTICACION Y SESION PERSISTENTE ---
+    // --- AUTENTICACION Y SESION ---
     function verificarSesionGuardada() {
       const sesionGuardada = localStorage.getItem(KEY_SESSION);
       if (sesionGuardada) {
@@ -590,16 +593,16 @@
       }
     }
 
-    // --- ARTICULOS Y DESHABILITACIÓN ---
+    // --- ARTICULOS Y GESTIÓN TXT ---
     function calcularPrecioFinalForm() {
       const costo = parseFloat(document.getElementById('artCosto').value) || 0;
       const margen = parseFloat(document.getElementById('artMargen').value) || 0;
-      const precio = costo + (costo * (margen / 100));
-      document.getElementById('artPrecioFinal').value = precio.toFixed(2);
+      document.getElementById('artPrecioFinal').value = (costo + (costo * (margen / 100))).toFixed(2);
     }
 
     function guardarArticulo() {
-      const id = document.getElementById('artIdEdit').value || Date.now().toString();
+      const idStr = document.getElementById('artCodigo').value.trim();
+      const id = idStr || Date.now().toString(); 
       const nombre = document.getElementById('artNombre').value.trim();
       const costo = parseFloat(document.getElementById('artCosto').value) || 0;
       const margen = parseFloat(document.getElementById('artMargen').value) || 0;
@@ -608,23 +611,27 @@
       if (!nombre) return alert('Ingrese una descripción para el producto');
 
       let articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
-      const idx = articulos.findIndex(a => a.id === id);
+      const idx = articulos.findIndex(a => a.id === id || a.id === document.getElementById('artIdEdit').value);
 
       if (idx >= 0) {
-        articulos[idx] = { ...articulos[idx], nombre, costo, margen, precio };
+        articulos[idx] = { ...articulos[idx], id, nombre, costo, margen, precio };
       } else {
         articulos.push({ id, nombre, costo, margen, precio, activo: true });
       }
 
       localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulos));
+      limpiarFormularioArticulos();
+      renderizarTablaArticulos();
+      alert('Producto guardado correctamente.');
+    }
+
+    function limpiarFormularioArticulos() {
       document.getElementById('artIdEdit').value = '';
+      document.getElementById('artCodigo').value = '';
       document.getElementById('artNombre').value = '';
       document.getElementById('artCosto').value = '';
       document.getElementById('artMargen').value = '25';
       document.getElementById('artPrecioFinal').value = '';
-
-      renderizarTablaArticulos();
-      alert('Producto guardado correctamente.');
     }
 
     function renderizarTablaArticulos() {
@@ -635,6 +642,7 @@
       articulos.forEach(a => {
         tbody.innerHTML += `
           <tr>
+            <td><small class="text-muted">${a.id}</small></td>
             <td>${a.nombre}</td>
             <td>$${parseFloat(a.costo || 0).toFixed(2)}</td>
             <td>${a.margen}%</td>
@@ -656,6 +664,7 @@
       const a = articulos.find(x => x.id === id);
       if (a) {
         document.getElementById('artIdEdit').value = a.id;
+        document.getElementById('artCodigo').value = a.id;
         document.getElementById('artNombre').value = a.nombre;
         document.getElementById('artCosto').value = a.costo;
         document.getElementById('artMargen').value = a.margen;
@@ -671,6 +680,64 @@
         localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulos));
         renderizarTablaArticulos();
       }
+    }
+
+    function exportarArticulosTXT() {
+      const articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
+      if (articulos.length === 0) return alert("No hay artículos para exportar.");
+
+      let contenidoTXT = "";
+      articulos.forEach(a => {
+        contenidoTXT += `${a.id};${a.nombre};${a.costo};${a.margen};${a.activo !== false}\n`;
+      });
+
+      const blob = new Blob([contenidoTXT], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Lista_Precios_${new Date().toISOString().slice(0,10)}.txt`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+
+    function procesarArchivoTXT(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const lineas = e.target.result.split(/\r?\n/);
+        let articulosActuales = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
+        let procesados = 0;
+
+        lineas.forEach(linea => {
+          if (!linea.trim()) return; 
+          const datos = linea.split(';');
+          
+          if (datos.length >= 4) {
+            const id = datos[0].trim();
+            const nombre = datos[1].trim();
+            const costo = parseFloat(datos[2].trim()) || 0;
+            const margen = parseFloat(datos[3].trim()) || 0;
+            const activo = datos.length >= 5 ? (datos[4].trim() === 'true') : true; 
+            const precio = costo + (costo * (margen / 100));
+
+            const idx = articulosActuales.findIndex(a => a.id === id);
+            if (idx >= 0) {
+              articulosActuales[idx] = { id, nombre, costo, margen, precio, activo };
+            } else {
+              articulosActuales.push({ id, nombre, costo, margen, precio, activo });
+            }
+            procesados++;
+          }
+        });
+
+        localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulosActuales));
+        renderizarTablaArticulos();
+        document.getElementById('inputArchivoTXT').value = ""; 
+        alert(`Se han importado/actualizado ${procesados} artículos exitosamente.`);
+      };
+      reader.readAsText(file);
     }
 
     // --- BÚSQUEDA Y AUTOCOMPLETE DE ARTÍCULOS EN PEDIDOS ---
@@ -1002,7 +1069,7 @@
       }
     }
 
-    // --- GENERACION DE PDFS EN FORMATO A4 ---
+    // --- GENERACION DE PDFS ---
     function exportarDoblePDFVendedor() {
       const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
       const misPedidos = pedidos.filter(p => p.vendedor === usuarioActual.user);
@@ -1154,7 +1221,6 @@
       doc.save(nombreArchivo);
     }
 
-    // --- NUEVA FUNCIÓN: BALANCE SEMANAL DE GANANCIA NETA ---
     function generarPDFBalanceSemanal() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
@@ -1166,7 +1232,6 @@
         return alert("No hay cierres de día registrados en el historial para generar el balance.");
       }
 
-      // Encabezado del Reporte
       doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
       doc.text("REPORTE FINANCIERO - BALANCE SEMANAL", 14, 20);
@@ -1182,7 +1247,6 @@
       let totalComisionesVentaGlobal = 0;
       let totalComisionesRepartoGlobal = 0;
 
-      // Agrupar y recorrer cierres por cada vendedor
       usuarios.forEach(u => {
         const cierresVendedor = historial.filter(h => h.vendedor === u.user);
         
@@ -1199,7 +1263,6 @@
             });
           });
 
-          // Obtener tasas de comisión del usuario o valores por defecto
           const pctComVenta = u.comision !== undefined ? parseFloat(u.comision) : 5;
           const pctComReparto = u.repartidor !== undefined ? parseFloat(u.repartidor) : 9;
 
@@ -1207,19 +1270,16 @@
           const comisionRepartoVend = ventaBrutaVend * (pctComReparto / 100);
           const gananciaVendedor = ventaBrutaVend - costoVend - comisionVentaVend - comisionRepartoVend;
 
-          // Acumular a totales globales
           totalVentaBrutaGlobal += ventaBrutaVend;
           totalCostoGlobal += costoVend;
           totalComisionesVentaGlobal += comisionVentaVend;
           totalComisionesRepartoGlobal += comisionRepartoVend;
 
-          // Salto de página si se supera la altura disponible
           if (yPos > 240) {
             doc.addPage();
             yPos = 20;
           }
 
-          // Bloque visual por vendedor
           doc.setFontSize(12);
           doc.setFont("helvetica", "bold");
           doc.text(`VENDEDOR: ${u.nombre.toUpperCase()} (@${u.user})`, 14, yPos);
@@ -1241,17 +1301,14 @@
         }
       });
 
-      // Cálculo de Ganancia Neta Global
       const totalComisionesGlobales = totalComisionesVentaGlobal + totalComisionesRepartoGlobal;
       const gananciaNetaRestanteGlobal = totalVentaBrutaGlobal - totalCostoGlobal - totalComisionesGlobales;
 
-      // Salto de página previo al resumen final si no hay espacio
       if (yPos > 210) {
         doc.addPage();
         yPos = 20;
       }
 
-      // Bloque Final Consolidado
       yPos += 5;
       doc.setFillColor(240, 240, 240);
       doc.rect(14, yPos, 182, 52, "F");
@@ -1270,7 +1327,6 @@
       doc.setFont("helvetica", "bold");
       doc.text(`GANANCIA NETA RESTANTE: $${gananciaNetaRestanteGlobal.toFixed(2)}`, 18, yPos + 40);
 
-      // Descarga del documento
       doc.save(`Balance_Semanal_${new Date().toISOString().slice(0, 10)}.pdf`);
     }
   </script>
