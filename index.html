@@ -49,15 +49,6 @@
               <input type="password" id="loginPass" class="form-control" placeholder="Ingrese clave">
             </div>
             <button class="btn btn-primary w-100 py-2 mb-3" onclick="iniciarSesion()"><i class="fa-solid fa-sign-in-alt me-1"></i>Ingresar</button>
-            <hr>
-            <p class="text-muted small mb-2 text-center">Accesos Rápidos de Prueba:</p>
-            <div class="d-flex flex-wrap gap-1 justify-content-center">
-              <button class="btn btn-outline-secondary btn-sm" onclick="quickLogin('daniel','00000')">Admin (Daniel)</button>
-              <button class="btn btn-outline-secondary btn-sm" onclick="quickLogin('sergio','cero')">Admin (Sergio)</button>
-              <button class="btn btn-outline-info btn-sm" onclick="quickLogin('emilce','0100')">Emilce</button>
-              <button class="btn btn-outline-info btn-sm" onclick="quickLogin('kevin','0200')">Kevin</button>
-              <button class="btn btn-outline-info btn-sm" onclick="quickLogin('ramona','0300')">Ramona</button>
-            </div>
           </div>
         </div>
       </div>
@@ -66,7 +57,7 @@
       <div id="panelPrincipal" style="display: none;">
         
         <div id="offlineAlert" class="alert alert-warning alert-dismissible fade show d-none" role="alert">
-          <i class="fa-solid fa-triangle-exclamation me-2"></i><strong>Modo Offline Activo:</strong> Los pedidos guardados se almacenarán localmente en el dispositivo y se sincronizarán al recuperar la conexión.
+          <i class="fa-solid fa-triangle-exclamation me-2"></i><strong>Modo Offline Activo:</strong> Los pedidos guardados se almacenarán localmente en el dispositivo y se sincronización al recuperar la conexión.
         </div>
 
         <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist">
@@ -124,7 +115,7 @@
                     <thead class="table-dark">
                       <tr>
                         <th>Producto</th>
-                        <th style="width: 100px;">Cant</th>
+                        <th>Cant</th>
                         <th>P. Unit</th>
                         <th>Subtotal</th>
                         <th>Acción</th>
@@ -235,22 +226,14 @@
             </div>
           </div>
 
-          <!-- REPORTE FINANCIERO CON FILTROS DE FECHA -->
+          <!-- BOTON BALANCE SEMANAL -->
           <div class="card p-3 mt-3 border-dark">
-            <h5 class="mb-2 text-dark"><i class="fa-solid fa-scale-balanced me-2"></i>Reporte Financiero Semanal</h5>
-            <small class="text-muted mb-3 d-block">Seleccione el rango de fechas para calcular el balance semanal por vendedor, el total consolidado de productos vendidost y la ganancia neta restante.</small>
-            <div class="row g-3 align-items-end">
-              <div class="col-md-4">
-                <label class="form-label font-weight-bold">Desde Fecha:</label>
-                <input type="date" id="balanceFechaDesde" class="form-control">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h5 class="mb-0 text-dark"><i class="fa-solid fa-scale-balanced me-2"></i>Reporte Financiero Semanal</h5>
+                <small class="text-muted">Genera un informe detallado por vendedor con la venta bruta, costos de productos, comisiones asignadas y ganancia neta restante.</small>
               </div>
-              <div class="col-md-4">
-                <label class="form-label font-weight-bold">Hasta Fecha:</label>
-                <input type="date" id="balanceFechaHasta" class="form-control">
-              </div>
-              <div class="col-md-4">
-                <button class="btn btn-success w-100 btn-lg" onclick="generarPDFBalanceSemanal()"><i class="fa-solid fa-file-pdf me-2"></i>Generar Balance</button>
-              </div>
+              <button class="btn btn-success btn-lg" onclick="generarPDFBalanceSemanal()"><i class="fa-solid fa-file-pdf me-2"></i>Balance Semanal</button>
             </div>
           </div>
         </div>
@@ -362,17 +345,7 @@
       inicializarBaseDeDatos();
       configurarMonitoreoConexion();
       verificarSesionGuardada();
-      establecerFechasPredeterminadas();
     });
-
-    function establecerFechasPredeterminadas() {
-      const hoy = new Date();
-      const hace7Dias = new Date();
-      hace7Dias.setDate(hoy.getDate() - 7);
-
-      document.getElementById('balanceFechaHasta').value = hoy.toISOString().split('T')[0];
-      document.getElementById('balanceFechaDesde').value = hace7Dias.toISOString().split('T')[0];
-    }
 
     function inicializarBaseDeDatos() {
       if (!localStorage.getItem(KEY_USUARIOS)) {
@@ -389,10 +362,11 @@
       if (!localStorage.getItem(KEY_CLIENTES)) {
         const clientesIniciales = [
           { id: '1', nombre: 'Almacén Don Pedro', direccion: 'Av. San Martín 123', localidad: 'González Catán', telefono: '11223344' },
-          { id: '2', nombre: 'Autoservicio Luna', direccion: 'Calle Belgrano 456', localidad: 'San Justo', telefono: '11556677' },
+          { id: '2', nombre: 'Autoservicio Luna', direccion: 'Calle Belgrano 456', localidad: 'San Justo', telefono: '11556677' }
         ];
         localStorage.setItem(KEY_CLIENTES, JSON.stringify(clientesIniciales));
       }
+
       if (!localStorage.getItem(KEY_ARTICULOS)) {
         const articulosIniciales = [
           { id: '00004', nombre: 'ROSAMONTE DESPALADA 500g.', costo: 1452.00, margen: 25, precio: 1815.00, activo: true, protegido: true },
@@ -403,9 +377,7 @@
           { id: '00049', nombre: 'PISINGALLO AGROMAR x 400g', costo: 327.50, margen: 25, precio: 409.38, activo: true, protegido: true },
           { id: '00062', nombre: 'SAL FINA TRESAL x 500g', costo: 408.00, margen: 25, precio: 510.00, activo: true, protegido: true },
           { id: '00118', nombre: 'YERBA NATURA VERDE OSCURA x 500g', costo: 1095.00, margen: 25, precio: 1368.75, activo: true, protegido: true },
-          { id: '00916', nombre: 'MONTELIRIO NIDOS N°1 x 500g', costo: 1616.00, margen: 25, precio: 2020.00, activo: true, protegido: true },
-          { id: '00916', nombre: 'MONTELIRIO NIDOS N°2 x 500g', costo: 1616.00, margen: 25, precio: 2020.00, activo: true, protegido: true }
-          // Puedes seguir agregando el resto de tus artículos aquí respetando este formato
+          { id: '00916', nombre: 'MONTELIRIO NIDOS N°1 x 500g', costo: 1616.00, margen: 25, precio: 2020.00, activo: true, protegido: true }
         ];
         localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulosIniciales));
       }
@@ -414,6 +386,7 @@
       if (!localStorage.getItem(KEY_HISTORIAL)) localStorage.setItem(KEY_HISTORIAL, JSON.stringify([]));
       if (!localStorage.getItem(KEY_COLA_OFFLINE)) localStorage.setItem(KEY_COLA_OFFLINE, JSON.stringify([]));
     }
+
     // --- MANEJO DE ESTADO ONLINE / OFFLINE ---
     function configurarMonitoreoConexion() {
       window.addEventListener('online', actualizarEstadoConexion);
@@ -445,7 +418,7 @@
       }
     }
 
-    // --- AUTENTICACIÓN Y SESIÓN PERSISTENTE ---
+    // --- AUTENTICACION Y SESION PERSISTENTE ---
     function verificarSesionGuardada() {
       const sesionGuardada = localStorage.getItem(KEY_SESSION);
       if (sesionGuardada) {
@@ -490,12 +463,6 @@
       }
 
       cambiarSolapa('pedidos');
-    }
-
-    function quickLogin(u, p) {
-      document.getElementById('loginUser').value = u;
-      document.getElementById('loginPass').value = p;
-      iniciarSesion();
     }
 
     function cerrarSesion() {
@@ -763,14 +730,6 @@
       renderizarTablaPedidoTemporal();
     }
 
-    function cambiarCantidadItemPedido(idx, nuevaCant) {
-      const c = parseInt(nuevaCant) || 1;
-      if (c <= 0) return;
-      pedidoTemporal[idx].cantidad = c;
-      pedidoTemporal[idx].subtotal = c * pedidoTemporal[idx].precio;
-      renderizarTablaPedidoTemporal();
-    }
-
     function renderizarTablaPedidoTemporal() {
       const tbody = document.getElementById('tablaDetallePedido');
       tbody.innerHTML = '';
@@ -781,9 +740,7 @@
         tbody.innerHTML += `
           <tr>
             <td>${item.nombre}</td>
-            <td>
-              <input type="number" class="form-control form-control-sm" min="1" value="${item.cantidad}" onchange="cambiarCantidadItemPedido(${idx}, this.value)">
-            </td>
+            <td>${item.cantidad}</td>
             <td>$${item.precio.toFixed(2)}</td>
             <td>$${item.subtotal.toFixed(2)}</td>
             <td><button class="btn btn-sm btn-outline-danger" onclick="eliminarItemPedidoTemporal(${idx})"><i class="fa-solid fa-xmark"></i></button></td>
@@ -1045,7 +1002,7 @@
       }
     }
 
-    // --- GENERACIÓN DE PDFS EN FORMATO A4 ---
+    // --- GENERACION DE PDFS EN FORMATO A4 ---
     function exportarDoblePDFVendedor() {
       const pedidos = JSON.parse(localStorage.getItem(KEY_PEDIDOS) || "[]");
       const misPedidos = pedidos.filter(p => p.vendedor === usuarioActual.user);
@@ -1157,7 +1114,7 @@
 
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
-      doc.text("RESUMEN CONSOLIDADO DE CARGA Y DEPÓSITO", 14, 15);
+      doc.text("RESUMEN CONSOLIDADO DE CARGA Y DEPOSTO", 14, 15);
       
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
@@ -1197,53 +1154,37 @@
       doc.save(nombreArchivo);
     }
 
-    // --- REPORTE FINANCIERO: BALANCE SEMANAL CON FILTRO DE FECHAS, RESUMEN POR VENDEDOR Y CONSOLIDADO DE PRODUCTOS ---
+    // --- NUEVA FUNCIÓN: BALANCE SEMANAL DE GANANCIA NETA ---
     function generarPDFBalanceSemanal() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
       
-      const fechaDesdeStr = document.getElementById('balanceFechaDesde').value;
-      const fechaHastaStr = document.getElementById('balanceFechaHasta').value;
-
-      if (!fechaDesdeStr || !fechaHastaStr) {
-        return alert("Por favor seleccione ambas fechas (Desde y Hasta).");
-      }
-
-      const fDesde = new Date(fechaDesdeStr + "T00:00:00");
-      const fHasta = new Date(fechaHastaStr + "T23:59:59");
-
       const historial = JSON.parse(localStorage.getItem(KEY_HISTORIAL) || "[]");
       const usuarios = JSON.parse(localStorage.getItem(KEY_USUARIOS) || "[]");
 
-      // Filtrar cierres dentro del rango
-      const cierresFiltrados = historial.filter(h => {
-        const fCierre = new Date(h.fecha);
-        return fCierre >= fDesde && fCierre <= fHasta;
-      });
-
-      if (cierresFiltrados.length === 0) {
-        return alert("No hay cierres de día registrados en el rango de fechas seleccionado.");
+      if (historial.length === 0) {
+        return alert("No hay cierres de día registrados en el historial para generar el balance.");
       }
 
-      doc.setFontSize(16);
+      // Encabezado del Reporte
+      doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
-      doc.text("REPORTE FINANCIERO - BALANCE SEMANAL", 14, 18);
+      doc.text("REPORTE FINANCIERO - BALANCE SEMANAL", 14, 20);
       
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(`Rango auditado: Desde ${fDesde.toLocaleDateString('es-AR')} hasta ${fHasta.toLocaleDateString('es-AR')}`, 14, 25);
-      doc.line(14, 28, 196, 28);
+      doc.text(`Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`, 14, 27);
+      doc.line(14, 30, 196, 30);
 
-      let yPos = 35;
+      let yPos = 38;
       let totalVentaBrutaGlobal = 0;
       let totalCostoGlobal = 0;
       let totalComisionesVentaGlobal = 0;
       let totalComisionesRepartoGlobal = 0;
-      let mapaConsolidadoStock = {};
 
-      // 1. Desglose detallado por cada vendedor
+      // Agrupar y recorrer cierres por cada vendedor
       usuarios.forEach(u => {
-        const cierresVendedor = cierresFiltrados.filter(h => h.vendedor === u.user);
+        const cierresVendedor = historial.filter(h => h.vendedor === u.user);
         
         if (cierresVendedor.length > 0) {
           let ventaBrutaVend = 0;
@@ -1253,119 +1194,84 @@
             (cierre.pedidos || []).forEach(ped => {
               ventaBrutaVend += ped.total || 0;
               (ped.items || []).forEach(it => {
-                const cItem = (it.costo || 0) * (it.cantidad || 0);
-                costoVend += cItem;
-
-                // Acumulado global de stock por producto
-                if (!mapaConsolidadoStock[it.nombre]) {
-                  mapaConsolidadoStock[it.nombre] = { cantidad: 0, subtotal: 0 };
-                }
-                mapaConsolidadoStock[it.nombre].cantidad += it.cantidad;
-                mapaConsolidadoStock[it.nombre].subtotal += it.subtotal;
+                costoVend += (it.costo || 0) * (it.cantidad || 0);
               });
             });
           });
 
+          // Obtener tasas de comisión del usuario o valores por defecto
           const pctComVenta = u.comision !== undefined ? parseFloat(u.comision) : 5;
           const pctComReparto = u.repartidor !== undefined ? parseFloat(u.repartidor) : 9;
 
           const comisionVentaVend = ventaBrutaVend * (pctComVenta / 100);
           const comisionRepartoVend = ventaBrutaVend * (pctComReparto / 100);
-          const subtotalNetoVendedor = ventaBrutaVend - costoVend - comisionVentaVend - comisionRepartoVend;
+          const gananciaVendedor = ventaBrutaVend - costoVend - comisionVentaVend - comisionRepartoVend;
 
+          // Acumular a totales globales
           totalVentaBrutaGlobal += ventaBrutaVend;
           totalCostoGlobal += costoVend;
           totalComisionesVentaGlobal += comisionVentaVend;
           totalComisionesRepartoGlobal += comisionRepartoVend;
 
+          // Salto de página si se supera la altura disponible
           if (yPos > 240) {
             doc.addPage();
             yPos = 20;
           }
 
-          doc.setFontSize(11);
+          // Bloque visual por vendedor
+          doc.setFontSize(12);
           doc.setFont("helvetica", "bold");
           doc.text(`VENDEDOR: ${u.nombre.toUpperCase()} (@${u.user})`, 14, yPos);
-          yPos += 5;
+          yPos += 6;
 
-          doc.setFontSize(9);
+          doc.setFontSize(10);
           doc.setFont("helvetica", "normal");
-          doc.text(`• Venta Bruta: $${ventaBrutaVend.toFixed(2)}`, 18, yPos); yPos += 4;
-          doc.text(`• Costo de Mercadería: $${costoVend.toFixed(2)}`, 18, yPos); yPos += 4;
-          doc.text(`• Comisión Venta (${pctComVenta}%): $${comisionVentaVend.toFixed(2)}`, 18, yPos); yPos += 4;
-          doc.text(`• Comisión Reparto (${pctComReparto}%): $${comisionRepartoVend.toFixed(2)}`, 18, yPos); yPos += 4;
+          doc.text(`• Venta Bruta: $${ventaBrutaVend.toFixed(2)}`, 18, yPos); yPos += 5;
+          doc.text(`• Costo de Mercadería: $${costoVend.toFixed(2)}`, 18, yPos); yPos += 5;
+          doc.text(`• Com. Venta (${pctComVenta}%): $${comisionVentaVend.toFixed(2)}`, 18, yPos); yPos += 5;
+          doc.text(`• Com. Reparto (${pctComReparto}%): $${comisionRepartoVend.toFixed(2)}`, 18, yPos); yPos += 5;
           
           doc.setFont("helvetica", "bold");
-          doc.text(`  Subtotal Neto Vendedor: $${subtotalNetoVendedor.toFixed(2)}`, 18, yPos); yPos += 6;
-          
+          doc.text(`  Subtotal Neto: $${gananciaVendedor.toFixed(2)}`, 18, yPos); yPos += 8;
           doc.setLineDashPattern([1, 1], 0);
-          doc.line(14, yPos - 2, 196, yPos - 2);
+          doc.line(14, yPos - 3, 196, yPos - 3);
           doc.setLineDashPattern([], 0);
           yPos += 4;
         }
       });
 
-      // 2. Cálculo global de la Ganancia Neta
+      // Cálculo de Ganancia Neta Global
       const totalComisionesGlobales = totalComisionesVentaGlobal + totalComisionesRepartoGlobal;
       const gananciaNetaRestanteGlobal = totalVentaBrutaGlobal - totalCostoGlobal - totalComisionesGlobales;
 
-      if (yPos > 220) {
+      // Salto de página previo al resumen final si no hay espacio
+      if (yPos > 210) {
         doc.addPage();
         yPos = 20;
       }
 
-      yPos += 2;
-      doc.setFillColor(240, 240, 240);
-      doc.rect(14, yPos, 182, 44, "F");
-
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.text("RESUMEN CONSOLIDADO GENERAL", 18, yPos + 7);
-
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Venta Bruta Total: $${totalVentaBrutaGlobal.toFixed(2)}`, 18, yPos + 14);
-      doc.text(`Costo Total de Artículos: $${totalCostoGlobal.toFixed(2)}`, 18, yPos + 20);
-      doc.text(`Total Comisiones (Venta + Reparto): $${totalComisionesGlobales.toFixed(2)}`, 18, yPos + 26);
-
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.text(`GANANCIA NETA RESTANTE: $${gananciaNetaRestanteGlobal.toFixed(2)}`, 18, yPos + 36);
-
-      yPos += 50;
-
-      // 3. Cuadro Consolidado de Unidades Vendidas (Resumen de Mercadería Semanal)
-      if (yPos > 220) {
-        doc.addPage();
-        yPos = 20;
-      }
-
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.text("RESUMEN CONSOLIDADO DE MERCADERÍA VENDIDA EN EL PERÍODO", 14, yPos);
+      // Bloque Final Consolidado
       yPos += 5;
-      
-      doc.setFontSize(9);
-      doc.text("Producto / Artículo", 14, yPos);
-      doc.text("Cant. Total", 130, yPos);
-      doc.text("Monto Total", 165, yPos);
-      doc.line(14, yPos + 2, 196, yPos + 2);
-      yPos += 6;
+      doc.setFillColor(240, 240, 240);
+      doc.rect(14, yPos, 182, 52, "F");
 
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("RESUMEN CONSOLIDADO GENERAL", 18, yPos + 8);
+
+      doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      Object.keys(mapaConsolidadoStock).forEach(pNombre => {
-        if (yPos > 275) {
-          doc.addPage();
-          yPos = 20;
-        }
-        const st = mapaConsolidadoStock[pNombre];
-        doc.text(pNombre, 14, yPos);
-        doc.text(st.cantidad.toString(), 130, yPos);
-        doc.text(`$${st.subtotal.toFixed(2)}`, 165, yPos);
-        yPos += 5;
-      });
+      doc.text(`Venta Bruta Total: $${totalVentaBrutaGlobal.toFixed(2)}`, 18, yPos + 16);
+      doc.text(`Costo Total de Artículos: $${totalCostoGlobal.toFixed(2)}`, 18, yPos + 22);
+      doc.text(`Total Comisiones (Venta + Reparto): $${totalComisionesGlobales.toFixed(2)}`, 18, yPos + 28);
 
-      doc.save(`Balance_Semanal_${fechaDesdeStr}_a_${fechaHastaStr}.pdf`);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(`GANANCIA NETA RESTANTE: $${gananciaNetaRestanteGlobal.toFixed(2)}`, 18, yPos + 40);
+
+      // Descarga del documento
+      doc.save(`Balance_Semanal_${new Date().toISOString().slice(0, 10)}.pdf`);
     }
   </script>
 </body>
