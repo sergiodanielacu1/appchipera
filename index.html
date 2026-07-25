@@ -1393,6 +1393,22 @@
 
     lector.readAsText(archivo, "UTF-8");
 }
+    function filtrarProductos() {
+    const textoBusqueda = document.getElementById('buscadorProductos').value.toLowerCase();
+    const filas = document.querySelectorAll('#tablaProductos tr, .producto-item'); // Ajusta el selector según cómo listes tus productos en la tabla
+
+    // Si usas una tabla tradicional, recorremos las filas del tbody
+    const filasTabla = document.querySelectorAll('table tbody tr');
+    
+    filasTabla.forEach(fila => {
+        const textoFila = fila.textContent.toLowerCase();
+        if (textoFila.includes(textoBusqueda)) {
+            fila.style.display = ""; // Muestra la fila si coincide
+        } else {
+            fila.style.display = "none"; // Oculta la fila si no coincide
+        }
+    });
+}
   </script>
 </body>
 </html>
