@@ -1337,6 +1337,58 @@
 
       doc.save(`Balance_Semanal_${new Date().toISOString().slice(0, 10)}.pdf`);
     }
+    function procesarArchivoTxt() {
+    const input = document.getElementById('inputTxtProductos');
+    if (!input.files || input.files.length === 0) {
+        alert("Selecciona un archivo .txt válido.");
+        return;
+    }
+
+    const archivo = input.files[0];
+    const lector = new FileReader();
+
+    lector.onload = function(e) {
+        const contenido = e.target.result;
+        const lineas = contenido.split('\n');
+        let contador = 0;
+
+        lineas.forEach(linea => {
+            linea = linea.trim();
+            if (linea !== "") {
+                // Asume formato: Descripcion;Costo;Margen
+                const columnas = linea.split(';');
+                if (columnas.length >= 2) {
+                    const descripcion = columnas[0].trim();
+                    const costo = parseFloat(columnas[1].trim()) || 0;
+                    const margen = columnas[2] ? parseFloat(columnas[2].trim()) : 25;
+
+                    // Objeto producto alineado a tu estructura
+                    const nuevoProd = {
+                        descripcion: descripcion,
+                        costo: costo,
+                        margen: margen,
+                        estado: "Activo"
+                    };
+
+                    // Si manejas un array global llamado 'productos'
+                    if (typeof productos !== 'undefined') {
+                        productos.push(nuevoProd);
+                        contador++;
+                    }
+                }
+            }
+        });
+
+        // Guardar y refrescar la tabla visual
+        if (typeof guardarDatos === 'function') guardarDatos();
+        if (typeof renderizarTabla === 'function') renderizarTabla();
+        
+        alert(`¡Proceso exitoso! Se cargaron ${contador} productos.`);
+        input.value = "";
+    };
+
+    lector.readAsText(archivo, "UTF-8");
+}
   </script>
 </body>
 </html>
