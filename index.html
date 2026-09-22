@@ -121,6 +121,26 @@
         </div>
 
         <!-- SOLAPA CLIENTES -->
+        <!-- Sección de Subida y Descarga de Clientes (TXT) -->
+<div class="card mt-3">
+    <div class="card-body">
+        <h5 class="card-title">Gestión Masiva de Clientes</h5>
+        
+        <!-- Subir archivo TXT -->
+        <div class="mb-3">
+            <label class="form-label">Subir lista de clientes (.txt):</label>
+            <input type="file" id="inputTxtClientes" accept=".txt" class="form-control mb-2">
+            <button type="button" class="btn btn-secondary btn-sm w-100" onclick="procesarClientesTxt()">Subir y Actualizar Clientes</button>
+        </div>
+
+        <hr>
+
+        <!-- Descargar archivo TXT -->
+        <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="descargarClientesTxt()">
+            Descargar Lista Actual (.txt)
+        </button>
+    </div>
+</div>
         <div id="solapa-clientes" class="tab-content-item" style="display: none;">
           <div class="row">
             <div class="col-md-4 mb-3">
@@ -1408,6 +1428,84 @@
             fila.style.display = "none"; // Oculta la fila si no coincide
         }
     });
+}
+    // 1. Función para SUBIR y procesar el archivo TXT de clientes
+function procesarClientesTxt() {
+    const input = document.getElementById('inputTxtClientes');
+    if (!input.files || input.files.length === 0) {
+        alert("Por favor, selecciona un archivo .txt válido.");
+        return;
+    }
+
+    const archivo = input.files[0];
+    const lector = new FileReader();
+
+    lector.onload = function(e) {
+        const contenido = e.target.result;
+        const lineas = contenido.split('\n');
+        let contador = 0;
+
+        lineas.forEach(linea => {
+            linea = linea.trim();
+            if (linea !== "") {
+                // Supone un formato por línea: Nombre; Teléfono; Dirección (ajusta según tus campos)
+                const columnas = linea.split(';');
+                const nombre = columnas[0] ? columnas[0].trim() : "";
+                const telefono = columnas[1] ? columnas[1].trim() : "";
+                const direccion = columnas[2] ? columnas[2].trim() : "";
+
+                if (nombre !== "") {
+                    const nuevoCliente = {
+                        nombre: nombre,
+                        telefono: telefono,
+                        direccion: direccion
+                    };
+
+                    // Asumiendo que usas un array global llamado 'clientes'
+                    if (typeof clientes !== 'undefined') {
+                        clientes.push(nuevoCliente);
+                        contador++;
+                    }
+                }
+            }
+        });
+
+        // Guardar y refrescar la vista de clientes
+        if (typeof guardarDatosClientes === 'function') guardarDatosClientes();
+        else if (typeof guardarDatos === 'function') guardarDatos(); // O tu función general de guardado
+
+        if (typeof renderizarClientes === 'function') renderizarClientes();
+
+        alert(`¡Importación exitosa! Se cargaron ${contador} clientes.`);
+        input.value = "";
+    };
+
+    lector.readAsText(archivo, "UTF-8");
+}
+
+// 2. Función para DESCARGAR la lista actual de clientes en TXT
+function descargarClientesTxt() {
+    if (typeof clientes === 'undefined' || clientes.length === 0) {
+        alert("No hay clientes registrados para descargar.");
+        return;
+    }
+
+    let contenidoTxt = "";
+    clientes.forEach(c => {
+        // Formato de guardado separado por punto y coma: Nombre;Teléfono;Dirección
+        contenidoTxt += `${c.nombre || ''};${c.telefono || ''};${c.direccion || ''}\n`;
+    });
+
+    // Crear un archivo virtual y disparar la descarga
+    const blob = new Blob([contenidoTxt], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'lista_clientes.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
   </script>
 </body>
