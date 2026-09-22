@@ -1362,12 +1362,7 @@
 
       doc.save(`Balance_Semanal_${new Date().toISOString().slice(0, 10)}.pdf`);
     }
-    function procesarArchivoTxt() {
-    const input = document.getElementById('inputTxtProductos');
-    if (!input.files || input.files.length === 0) {
-        alert("Selecciona un archivo .txt válido.");
-        return;
-    }
+    
 
     const archivo = input.files[0];
     const lector = new FileReader();
@@ -1414,29 +1409,11 @@
 
     lector.readAsText(archivo, "UTF-8");
 }
-    function filtrarProductos() {
-    const textoBusqueda = document.getElementById('buscadorProductos').value.toLowerCase();
-    const filas = document.querySelectorAll('#tablaProductos tr, .producto-item'); // Ajusta el selector según cómo listes tus productos en la tabla
-
-    // Si usas una tabla tradicional, recorremos las filas del tbody
-    const filasTabla = document.querySelectorAll('table tbody tr');
     
-    filasTabla.forEach(fila => {
-        const textoFila = fila.textContent.toLowerCase();
-        if (textoFila.includes(textoBusqueda)) {
-            fila.style.display = ""; // Muestra la fila si coincide
-        } else {
-            fila.style.display = "none"; // Oculta la fila si no coincide
-        }
     });
 }
     // 1. Función para SUBIR y procesar el archivo TXT de clientes
-function procesarClientesTxt() {
-    const input = document.getElementById('inputTxtClientes');
-    if (!input.files || input.files.length === 0) {
-        alert("Por favor, selecciona un archivo .txt válido.");
-        return;
-    }
+
 
     const archivo = input.files[0];
     const lector = new FileReader();
@@ -1485,11 +1462,7 @@ function procesarClientesTxt() {
 }
 
 // 2. Función para DESCARGAR la lista actual de clientes en TXT
-function descargarClientesTxt() {
-    if (typeof clientes === 'undefined' || clientes.length === 0) {
-        alert("No hay clientes registrados para descargar.");
-        return;
-    }
+
 
     let contenidoTxt = "";
     clientes.forEach(c => {
@@ -1508,6 +1481,170 @@ function descargarClientesTxt() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+    // ==========================================
+    // REFACTORIZACIÓN: GESTIÓN DE PRODUCTOS TXT
+    // ==========================================
+    
+    function procesarArchivoTxt() {
+        const input = document.getElementById('inputTxtProductos');
+        if (!input.files || input.files.length === 0) {
+            alert("Selecciona un archivo .txt válido.");
+            return;
+        }
+
+        const archivo = input.files[0];
+        const lector = new FileReader();
+
+        lector.onload = function(e) {
+            const contenido = e.target.result;
+            const lineas = contenido.split(/\r?\n/);
+            
+            // 1. Obtener la base de datos real del LocalStorage
+            let articulos = JSON.parse(localStorage.getItem(KEY_ARTICULOS) || "[]");
+            let contador = 0;
+
+            lineas.forEach((linea, index) => {
+                linea = linea.trim();
+                if (linea !== "") {
+                    // Formato esperado: Descripción;Costo;Margen
+                    const columnas = linea.split(';');
+                    if (columnas.length >= 2) {
+                        const nombre = columnas[0].trim();
+                        const costo = parseFloat(columnas[1].trim()) || 0;
+                        const margen = columnas[2] ? parseFloat(columnas[2].trim()) : 25;
+                        
+                        // 2. Calcular precio final y asignar propiedades que requiere la app
+                        const precio = costo + (costo * (margen / 100));
+                        const id = Date.now().toString() + contador; // ID único dinámico
+
+                        articulos.push({
+                            id: id,
+                            nombre: nombre,
+                            costo: costo,
+                            margen: margen,
+                            precio: precio,
+                            activo: true
+                        });
+                        contador++;
+                    }
+                }
+            });
+
+            // 3. Guardar en LocalStorage y refrescar la tabla correcta
+            localStorage.setItem(KEY_ARTICULOS, JSON.stringify(articulos));
+            renderizarTablaArticulos(); 
+            
+            alert(`¡Proceso exitoso! Se cargaron ${contador} productos al catálogo.`);
+            input.value = "";
+        };
+
+        lector.readAsText(archivo, "UTF-8");
+    }
+
+    function filtrarProductos() {
+        const textoBusqueda = document.getElementById('buscadorProductos').value.toLowerCase();
+        
+        // Corrección: Apuntar directamente al ID del tbody de tu tabla de artículos
+        const filasTabla = document.querySelectorAll('#tablaArticulosBody tr');
+        
+        filasTabla.forEach(fila => {
+            const textoFila = fila.textContent.toLowerCase();
+            if (textoFila.includes(textoBusqueda)) {
+                fila.style.display = ""; 
+            } else {
+                fila.style.display = "none"; 
+            }
+        });
+    }
+
+
+    // ==========================================
+    // REFACTORIZACIÓN: GESTIÓN DE CLIENTES TXT
+    // ==========================================
+
+    function procesarClientesTxt() {
+        const input = document.getElementById('inputTxtClientes');
+        if (!input.files || input.files.length === 0) {
+            alert("Por favor, selecciona un archivo .txt válido.");
+            return;
+        }
+
+        const archivo = input.files[0];
+        const lector = new FileReader();
+
+        lector.onload = function(e) {
+            const contenido = e.target.result;
+            const lineas = contenido.split(/\r?\n/);
+            
+            // 1. Obtener base de datos de clientes del LocalStorage
+            let clientes = JSON.parse(localStorage.getItem(KEY_CLIENTES) || "[]");
+            let contador = 0;
+
+            lineas.forEach((linea, index) => {
+                linea = linea.trim();
+                if (linea !== "") {
+                    // Formato ampliado: Nombre;Teléfono;Dirección;Localidad
+                    const columnas = linea.split(';');
+                    const nombre = columnas[0] ? columnas[0].trim() : "";
+                    
+                    if (nombre !== "") {
+                        const telefono = columnas[1] ? columnas[1].trim() : "";
+                        const direccion = columnas[2] ? columnas[2].trim() : "";
+                        const localidad = columnas[3] ? columnas[3].trim() : ""; 
+                        
+                        // 2. ID vital para enlazar el cliente con la boleta de pedido
+                        const id = Date.now().toString() + index; 
+
+                        clientes.push({
+                            id: id,
+                            nombre: nombre,
+                            telefono: telefono,
+                            direccion: direccion,
+                            localidad: localidad
+                        });
+                        contador++;
+                    }
+                }
+            });
+
+            // 3. Guardar y refrescar ambas interfaces (Tabla y Select de Pedidos)
+            localStorage.setItem(KEY_CLIENTES, JSON.stringify(clientes));
+            renderizarTablaClientes();
+            cargarClientesEnSelectPedido();
+
+            alert(`¡Importación exitosa! Se cargaron ${contador} clientes a la ruta.`);
+            input.value = "";
+        };
+
+        lector.readAsText(archivo, "UTF-8");
+    }
+
+    function descargarClientesTxt() {
+        // 1. Leer directamente del LocalStorage
+        const clientes = JSON.parse(localStorage.getItem(KEY_CLIENTES) || "[]");
+        
+        if (clientes.length === 0) {
+            alert("No hay clientes registrados para descargar.");
+            return;
+        }
+
+        let contenidoTxt = "";
+        clientes.forEach(c => {
+            // Se exporta con la localidad incluida
+            contenidoTxt += `${c.nombre || ''};${c.telefono || ''};${c.direccion || ''};${c.localidad || ''}\n`;
+        });
+
+        const blob = new Blob([contenidoTxt], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        // Nombre del archivo dinámico con fecha
+        a.download = `lista_clientes_${new Date().toISOString().slice(0,10)}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
   </script>
 </body>
 </html>
